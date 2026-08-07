@@ -237,4 +237,32 @@ describe('ExampleCard', () => {
     expect(html).toContain('orgId');
     expect(html).toContain('alice');
   });
+
+  describe('code snippet', () => {
+    it('offers a labelled Code Snippet trigger when expanded', () => {
+      const html = renderToStaticMarkup(
+        <ExampleCard example={example} method="post" url="{{baseUrl}}/auth/login" defaultExpanded />
+      );
+      expect(html).toContain('data-testid="example-code-snippet"');
+      expect(html).toContain('Code Snippet');
+      // Announces itself as opening a dialog rather than navigating.
+      expect(html).toContain('aria-haspopup="dialog"');
+    });
+
+    it('does not render the trigger while the card is collapsed', () => {
+      const html = renderToStaticMarkup(<ExampleCard example={example} method="post" url="/x" />);
+      expect(html).not.toContain('data-testid="example-code-snippet"');
+    });
+
+    it('keeps the snippet dialog closed until the trigger is used', () => {
+      const html = renderToStaticMarkup(
+        <ExampleCard example={example} method="post" url="/x" defaultExpanded />
+      );
+      // The trigger renders, but Modal returns null while closed — so no dialog
+      expect(html).toContain('data-testid="example-code-snippet"');
+      expect(html).not.toContain('role="dialog"');
+      expect(html).not.toContain('data-testid="code-snippet-modal"');
+      expect(html).not.toContain('curl');
+    });
+  });
 });

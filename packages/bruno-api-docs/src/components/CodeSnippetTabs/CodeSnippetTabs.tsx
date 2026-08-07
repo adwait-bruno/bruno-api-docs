@@ -69,7 +69,7 @@ export const CodeSnippetTabs: React.FC<CodeSnippetTabsProps> = ({ method, url, h
   };
 
   const renderSnippetBox = (
-    variant: 'inline' | 'modal',
+    placement: 'inline' | 'modal',
     activeId: string,
     setActiveId: (id: string) => void
   ) => {
@@ -95,8 +95,9 @@ export const CodeSnippetTabs: React.FC<CodeSnippetTabsProps> = ({ method, url, h
             ))}
           </div>
           <span className="snippet-head-spacer" />
-          {variant === 'inline' ? (
+          {placement === 'inline' ? (
             <button
+              ref={triggerRef}
               type="button"
               className="code-snippet-expand"
               aria-label="Expand code snippet"
@@ -109,7 +110,7 @@ export const CodeSnippetTabs: React.FC<CodeSnippetTabsProps> = ({ method, url, h
             <CopyButton text={copyText} label="Copy code" className="snippet-copy" />
           )}
         </div>
-        <Code code={snippet} language={activeLang.language} showLineNumbers showCopy={variant === 'inline'} variableAware copyText={copyText} testId="code-snippet-code" />
+        <Code code={snippet} language={activeLang.language} showLineNumbers showCopy={placement === 'inline'} variableAware copyText={copyText} testId="code-snippet-code" />
       </div>
     );
   };
@@ -124,7 +125,7 @@ export const CodeSnippetTabs: React.FC<CodeSnippetTabsProps> = ({ method, url, h
           type="button"
           className="snippet-trigger"
           aria-haspopup="dialog"
-          data-testid="example-code-snippet"
+          data-testid={`${testId}-trigger`}
           onClick={openModal}
         >
           <IconCode size={16} stroke={1.5} />

@@ -104,9 +104,18 @@ test.describe('Request page — Examples', () => {
       const { examples } = requestPage;
       await examples.openSnippet(OK_EXAMPLE);
       await expect(examples.snippetCode).toContainText('curl');
-
+      await expect(examples.snippetCode).toContainText('per_page=10');
       await examples.snippetLanguageTab('python').click();
       await expect(examples.snippetCode).toContainText('requests');
+      await expect(examples.snippetCode).toContainText('per_page=10');
+    });
+
+    test('builds each snippet from its own example, not a shared one', async ({ requestPage }) => {
+      const { examples } = requestPage;
+      await examples.open(BAD_REQUEST_EXAMPLE);
+      await examples.openSnippet(BAD_REQUEST_EXAMPLE);
+      await expect(examples.snippetCode).toContainText('per_page=999');
+      await expect(examples.snippetCode).not.toContainText('per_page=10');
     });
 
     test('offers a copy action for the snippet', async ({ requestPage }) => {

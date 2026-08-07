@@ -35,7 +35,7 @@ export class ExamplesComponent extends BaseComponent {
   readonly snippetCode = this.snippetModal.getByTestId('code-snippet-code');
 
   snippetButton(name: string): Locator {
-    return this.example(name).getByTestId('example-code-snippet');
+    return this.example(name).getByTestId('example-code-snippet-trigger');
   }
 
   snippetLanguageTab(language: string): Locator {

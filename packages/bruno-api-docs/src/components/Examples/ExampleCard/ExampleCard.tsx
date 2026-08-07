@@ -334,7 +334,7 @@ export const ExampleCard: React.FC<ExampleCardProps> = ({ example, method, url, 
                   headers={request.headers}
                   body={request.body}
                   auth={auth}
-                  testId="example-code-snippet-tabs"
+                  testId="example-code-snippet"
                 />
                 <CopyButton text={displayUrl} />
               </div>

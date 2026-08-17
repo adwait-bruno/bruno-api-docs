@@ -11,17 +11,15 @@ describe('WarningBanner', () => {
   it('renders the message under a singular title for one warning', () => {
     const root = useRenderToDom(<WarningBanner warnings={[SET_MAX_REDIRECTS]} />);
     expect(getByTestId(root, 'warning-banner')).toBeTruthy();
-    expect(getByTestId(root, 'warning-title').text).toBe('Warning');
-    const messages = root.querySelectorAll('[data-testid="warning-message"]');
-    expect(messages).toHaveLength(1);
-    expect(messages[0].text).toBe(SET_MAX_REDIRECTS);
+    expect(getByTestId(root, 'warning-title').textContent).toBe('Warning');
+    expect(getByTestId(root, 'warning-message').textContent).toBe(SET_MAX_REDIRECTS);
   });
 
   it('uses a plural title and lists every message when there is more than one warning', () => {
     const root = useRenderToDom(<WarningBanner warnings={[SET_MAX_REDIRECTS, ON_FAIL]} />);
-    expect(getByTestId(root, 'warning-title').text).toBe('Warnings');
-    const messages = root.querySelectorAll('[data-testid="warning-message"]');
-    expect(messages.map((message) => message.text)).toEqual([SET_MAX_REDIRECTS, ON_FAIL]);
+    expect(getByTestId(root, 'warning-title').textContent).toBe('Warnings');
+    const messages = Array.from(root.querySelectorAll('[data-testid="warning-message"]')).map((el) => el.textContent);
+    expect(messages).toEqual([SET_MAX_REDIRECTS, ON_FAIL]);
   });
 
   it('renders nothing when there are no warnings', () => {

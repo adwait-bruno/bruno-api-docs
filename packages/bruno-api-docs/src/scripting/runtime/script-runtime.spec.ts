@@ -1,7 +1,43 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import ScriptRuntime from './script-runtime';
 
 describe('ScriptRuntime', () => {
+  it('bru.sendRequest fires the Node-style (err, res) callback on success and on failure', async () => {
+    const runtime = new ScriptRuntime();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: async () => '{"ok":true}'
+      })
+      .mockRejectedValueOnce(new Error('network down'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const runtimeVariables: Record<string, string | boolean> = {};
+    const script = `
+      await new Promise((resolve) => {
+        bru.sendRequest({ url: 'https://api.example.com/ok' }, (err, res) => {
+          bru.setVar('successCb', err ? 'unexpected-error' : res.data.ok);
+          resolve();
+        });
+      });
+      await new Promise((resolve) => {
+        bru.sendRequest({ url: 'https://api.example.com/bad' }, (err) => {
+          const message = err ? String(err.message) : '';
+          const keepsReasonAndUrl = message.includes('network down') && message.includes('api.example.com/bad');
+          bru.setVar('errorCb', keepsReasonAndUrl ? 'reason-kept' : 'no-reason');
+          resolve();
+        });
+      });
+    `;
+
+    await runtime.runScript({ script, variables: { runtimeVariables } });
+
+    expect(runtimeVariables).toEqual({ successCb: true, errorCb: 'reason-kept' });
+    vi.unstubAllGlobals();
+  });
+
   it('should handle script execution', async () => {
     const runtime = new ScriptRuntime();
 
@@ -133,6 +169,8 @@ describe('ScriptRuntime', () => {
         expect(found.value).to.eql('abc');
         const tagged = res.headerList.map(function (h) { return this.p + h.key; }, { p: '#' });
         expect(tagged).to.include('#x-token');
+        const counts = res.headerList.map(function (h, i, all) { return all.length; });
+        expect(counts[0]).to.eql(2);
         const joined = res.headerList.reduce(function (acc, h) { return acc + h.key + ';'; }, '');
         expect(joined).to.match(/x-token;/);
       });
@@ -268,5 +306,160 @@ describe('ScriptRuntime', () => {
       'req.setMaxRedirects is not currently supported in the Bruno playground. Please use the Bruno desktop app.',
       'req.onFail is not currently supported in the Bruno playground. Please use the Bruno desktop app.'
     ]);
+  });
+
+  it('runs the full req API inside the QuickJS sandbox — reads the nested http shape, and setter/headerList writes reach the request object', async () => {
+    const runtime = new ScriptRuntime();
+
+    const mockRequest = {
+      info: { name: 'Create User', tags: ['smoke'] },
+      http: {
+        method: 'POST',
+        url: 'https://api.example.com/users/:id?active=true',
+        headers: [
+          { name: 'Content-Type', value: 'application/json' },
+          { name: 'X-Token', value: 'abc' }
+        ],
+        params: [{ name: 'id', value: '42', type: 'path' }],
+        body: { type: 'json', data: '{"a":1}' },
+        auth: { type: 'bearer', token: 'xyz' }
+      },
+      settings: { timeout: 5000 }
+    };
+
+    const script = `
+      await test('req reads url/method/name/auth and derives host/path from the nested shape', () => {
+        expect(req.getUrl()).to.eql('https://api.example.com/users/:id?active=true');
+        expect(req.getMethod()).to.eql('POST');
+        expect(req.getName()).to.eql('Create User');
+        expect(req.getAuthMode()).to.eql('bearer');
+        expect(req.getHost()).to.eql('api.example.com');
+        expect(req.getPath()).to.eql('/users/42');
+      });
+      await test('req header reads and the writable headerList resolve headers', () => {
+        expect(req.getHeader('X-Token')).to.eql('abc');
+        expect(req.headerList.get('content-type')).to.eql('application/json');
+        expect(req.headerList.count()).to.eql(2);
+      });
+      await test('req.getBody parses the JSON body; getPathParams and getTags read the request', () => {
+        expect(JSON.stringify(req.getBody())).to.eql('{"a":1}');
+        expect(req.getPathParams()[0].name).to.eql('id');
+        expect(req.getTags()).to.include('smoke');
+      });
+      await test('req.headerList iterators run their callbacks across the sandbox', () => {
+        expect(req.headerList.map(function (h) { return h.key; })).to.include('Content-Type');
+        expect(req.headerList.find(function (h) { return h.key === 'X-Token'; }).value).to.eql('abc');
+      });
+      await test('setHeader / headerList.add / setBody / setUrl mutate the request', () => {
+        req.setHeader('X-Script', 'yes');
+        req.headerList.add('X-Added', '1');
+        req.setBody({ updated: true });
+        req.setUrl('https://api.example.com/v2');
+        expect(req.getHeader('X-Script')).to.eql('yes');
+        expect(req.headerList.has('x-added')).to.eql(true);
+      });
+    `;
+
+    const bru = await runtime.runScript({
+      script,
+      request: mockRequest,
+      collectionName: 'C',
+      collectionPath: '/c',
+      variables: {}
+    });
+
+    if (!bru.getTestResults) throw new Error('getTestResults was not attached to bru');
+    const results = await bru.getTestResults();
+    expect(results.summary.failed).toBe(0);
+    expect(results.summary.total).toBe(5);
+
+    expect(mockRequest.http.url).toBe('https://api.example.com/v2');
+    expect(mockRequest.http.body).toEqual({ type: 'json', data: '{"updated":true}' });
+    expect(mockRequest.http.headers).toContainEqual({ name: 'X-Script', value: 'yes' });
+    expect(mockRequest.http.headers).toContainEqual({ name: 'X-Added', value: '1' });
+  });
+
+  it('collects a warning (never a silent no-op) when a script calls an unsupported req method; call args are accepted and ignored', async () => {
+    const runtime = new ScriptRuntime();
+    const warnings: string[] = [];
+
+    const script = `
+      req.setMaxRedirects(5);
+      req.onFail(function (err) { return err; });
+      req.setMaxRedirects(10);
+    `;
+
+    await runtime.runScript({
+      script,
+      request: { http: { method: 'GET', url: 'https://api.example.com' } },
+      collectionName: 'C',
+      collectionPath: '/c',
+      variables: {},
+      warnings
+    });
+
+    expect(warnings).toEqual([
+      'req.setMaxRedirects is not currently supported in the Bruno playground. Please use the Bruno desktop app.',
+      'req.onFail is not currently supported in the Bruno playground. Please use the Bruno desktop app.'
+    ]);
+  });
+
+  it('runs the full bru API inside the QuickJS sandbox — stores, interpolate, utils, isSafeMode, and out-of-scope warnings', async () => {
+    const runtime = new ScriptRuntime();
+    const warnings: string[] = [];
+    const runtimeVariables: Record<string, string> = {};
+
+    const script = `
+      await test('bru variable stores round-trip through the sandbox', () => {
+        bru.setVar('token', 'abc');
+        expect(bru.getVar('token')).to.equal('abc');
+        expect(bru.hasVar('token')).to.equal(true);
+        bru.setCollectionVar('cv', '1');
+        expect(bru.getCollectionVar('cv')).to.equal('1');
+        expect(bru.getAllVars().token).to.equal('abc');
+      });
+      await test('bru.interpolate resolves {{var}} using the runtime store', () => {
+        bru.setVar('host', 'example.com');
+        expect(bru.interpolate('https://{{host}}/api')).to.equal('https://example.com/api');
+      });
+      await test('bru.utils.minifyJson and bru.isSafeMode run in the sandbox', () => {
+        expect(bru.utils.minifyJson('{ "a": 1 }')).to.equal('{"a":1}');
+        expect(bru.isSafeMode()).to.equal(true);
+      });
+
+      bru.visualize('html', { content: 'x' });
+      bru.runner.skipRequest();
+      bru.runner.iterationIndex;
+      bru.runner.totalIterations;
+      bru.runner.iterationData.get('key');
+      bru.getAllGlobalEnvVars();
+      bru.cwd();
+      bru.getProcessEnv('X');
+      bru.cookies.get('sid');
+      bru.getOauth2CredentialVar('k');
+    `;
+
+    const bru = await runtime.runScript({
+      script,
+      variables: { runtimeVariables },
+      collectionName: 'C',
+      collectionPath: '/c',
+      warnings
+    });
+
+    if (!bru.getTestResults) throw new Error('getTestResults was not attached to bru');
+    const results = await bru.getTestResults();
+    expect(results.summary.failed).toBe(0);
+    expect(results.summary.total).toBe(3);
+
+    expect(runtimeVariables.token).toBe('abc');
+    const unsupported = (api: string) => `${api} is not currently supported in the Bruno playground. Please use the Bruno desktop app.`;
+    for (const api of [
+      'bru.visualize', 'bru.runner.skipRequest', 'bru.runner.iterationIndex', 'bru.runner.totalIterations',
+      'bru.runner.iterationData', 'bru.runner.iterationData.get', 'bru.getAllGlobalEnvVars', 'bru.cwd',
+      'bru.getProcessEnv', 'bru.cookies.get', 'bru.getOauth2CredentialVar'
+    ]) {
+      expect(warnings).toContain(unsupported(api));
+    }
   });
 });

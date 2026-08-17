@@ -63,7 +63,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({ response, isLoading, orient
   // A failed request (no HTTP response) renders a danger banner inside the
   // Response tab, keeping the same tab shell as a successful response.
   const renderErrorBanner = () => (
-    <div className="p-4">
+    <div className="pb-4">
       <ErrorBanner
         title={response.errorTitle || 'Request Failed'}
         message={response.error ?? ''}
@@ -71,15 +71,23 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({ response, isLoading, orient
     </div>
   );
 
-  const renderResponseBody = () =>
-    response.error ? renderErrorBanner() : (
-      <ResponseBodyTab
-        response={response}
-        selectedFormat={selectedFormat}
-        showPreview={showPreview}
-        contentType={contentType}
-      />
-    );
+  const renderResponseBody = () => (
+    <div className="flex flex-col h-full">
+      {response.warnings?.length ? (
+        <div className="pb-4">
+          <WarningBanner warnings={response.warnings} />
+        </div>
+      ) : null}
+      {response.error ? renderErrorBanner() : (
+        <ResponseBodyTab
+          response={response}
+          selectedFormat={selectedFormat}
+          showPreview={showPreview}
+          contentType={contentType}
+        />
+      )}
+    </div>
+  );
   const renderHeaders = () => <ResponseHeadersTab headers={response.headers} />;
   const renderTestResults = () => (
     <TestResultsTab
@@ -159,11 +167,6 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({ response, isLoading, orient
           />
         </div>
       )}
-      {response.warnings?.length ? (
-        <div className="pb-4 shrink-0">
-          <WarningBanner warnings={response.warnings} />
-        </div>
-      ) : null}
       <Tabs
         variant="responsive"
         testId="response-tabs"
@@ -171,9 +174,10 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({ response, isLoading, orient
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        rightElement={response.error ? null : statusInfo}
+        rightElement={response.error ? undefined : statusInfo}
         rightContentExpandedWidth={actionsExpandedWidth}
       />
+
     </StyledWrapper>
   );
 };

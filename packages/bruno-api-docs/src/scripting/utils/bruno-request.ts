@@ -12,6 +12,7 @@ import {
 } from '../../utils/schemaHelpers';
 import { createRequestHeaderList, type HeaderList } from './header-list';
 import type { JsonValue } from './bruno-response';
+import { addUnsupportedWarning } from './unsupported-warning';
 
 const RAW_BODY_TYPES = ['json', 'text', 'xml', 'sparql'] as const;
 
@@ -217,11 +218,7 @@ class BrunoRequest {
   }
 
   private addWarning(api: string) {
-    if (!this.warnings) return;
-    const message = `${api} is not currently supported in the Bruno playground. Please use the Bruno desktop app.`;
-    if (!this.warnings.includes(message)) {
-      this.warnings.push(message);
-    }
+    addUnsupportedWarning(this.warnings, api);
   }
 
   private http() {

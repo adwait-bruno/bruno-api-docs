@@ -16,7 +16,7 @@ export interface RequestHeaderEntry {
 export type HeaderRef = { key: string; value?: HeaderValue };
 export type HeaderInput = HeaderRef | string;
 
-type HeaderPredicate = (header: HeaderEntry, index: number) => boolean;
+type HeaderPredicate = (header: HeaderEntry, index: number, collection?: HeaderEntry[]) => boolean;
 
 export interface HeaderList {
   get(name: string): HeaderValue | undefined;
@@ -27,9 +27,11 @@ export interface HeaderList {
   indexOf(item: string | HeaderRef): number;
   find(fn: HeaderPredicate, ctx?: object): HeaderEntry | undefined;
   filter(fn: HeaderPredicate, ctx?: object): HeaderEntry[];
-  each(fn: (header: HeaderEntry, index: number) => void, ctx?: object): void;
-  map<T>(fn: (header: HeaderEntry, index: number) => T, ctx?: object): T[];
-  reduce<T>(fn: (accumulator: T, header: HeaderEntry, index: number) => T, initial?: T, ctx?: object): T;
+  each(fn: (header: HeaderEntry, index: number, collection: HeaderEntry[]) => void, ctx?: object): void;
+  map<T>(fn: (header: HeaderEntry, index: number, collection: HeaderEntry[]) => T, ctx?: object): T[];
+  reduce<T>(
+    fn: (accumulator: T, header: HeaderEntry, index: number, collection: HeaderEntry[]) => T, initial?: T, ctx?: object
+  ): T;
   toObject(
     excludeDisabled?: boolean, caseSensitive?: boolean, multiValue?: boolean, sanitizeKeys?: boolean
   ): HeadersRecord;
@@ -92,10 +94,11 @@ const createHeaderListBase = (entries: () => HeaderEntry[], mutators: HeaderMuta
   each: (fn, ctx) => entries().forEach(fn, ctx),
   map: (fn, ctx) => entries().map(fn, ctx),
   reduce: <T>(
-    fn: (accumulator: T, header: HeaderEntry, index: number) => T,
+    fn: (accumulator: T, header: HeaderEntry, index: number, collection: HeaderEntry[]) => T,
     ...rest: [initial?: T, ctx?: object]
   ): T => {
-    const reducer = rest.length > 1 ? fn.bind(rest[1]) : fn;
+    const ctx = rest.length > 1 ? rest[1] : undefined;
+    const reducer = ctx !== undefined ? fn.bind(ctx) : fn;
     const list = entries();
     const hasInitial = rest.length > 0;
     if (!hasInitial && list.length === 0) {
@@ -103,7 +106,7 @@ const createHeaderListBase = (entries: () => HeaderEntry[], mutators: HeaderMuta
     }
     let accumulator = (hasInitial ? rest[0] : list[0]) as T;
     for (let i = hasInitial ? 0 : 1; i < list.length; i++) {
-      accumulator = reducer(accumulator, list[i], i);
+      accumulator = reducer(accumulator, list[i], i, list);
     }
     return accumulator;
   },

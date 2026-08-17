@@ -1,16 +1,36 @@
 import type { HttpRequest } from '@opencollection/types/requests/http';
 import type { OpenCollection as OpenCollectionCollection } from '@opencollection/types';
 import type { Environment } from '@opencollection/types/config/environments';
-import type { Buffer } from 'buffer';
 import { RequestExecutor } from './RequestExecutor';
 import ScriptRuntime from '../scripting/runtime/script-runtime';
+import type { RunRequestCallback } from '../scripting/utils/bru';
 import AssertRuntime, { type AssertionResult } from '../scripting/runtime/assert-runtime';
-import { getTreePathFromCollectionToItem, mergeHeaders, mergeScripts, mergeAuth, interpolateVars } from './utils';
+import { getTreePathFromCollectionToItem, mergeHeaders, mergeScripts, mergeAuth, interpolateVars, findItemByPath } from './utils';
 import { getCollectionFolderRequestVariables } from './utils/variable-merger';
 import { coerceVariableValue, parseValueByDataType, type CoercedVariableValue } from '../utils/variableDataType';
 import { externalSecretValues, type ExternalSecretEntry } from '../utils/variableResolution';
+import type { Variables, JsonValue } from './utils/variable-interpolator';
 import type { VariableValueOrVariants, VariableValueType } from '@opencollection/types/common/variables';
-import { getRequestScripts, getRequestAssertions, scriptsArrayToObject, type InternalHttpRequest } from '../utils/schemaHelpers';
+import {
+  getRequestScripts, getRequestAssertions, scriptsArrayToObject,
+  isHttpRequest, getItemType, getItemName, getHttpMethod, getRequestUrl, type InternalHttpRequest
+} from '@/utils/schemaHelpers';
+import { getItemUuid } from '../utils/itemUtils';
+
+const MAX_RUN_REQUEST_DEPTH = 25;
+
+interface RunContext {
+  collection: OpenCollectionCollection;
+  environment?: Environment;
+  environmentVariables: Variables;
+  runtimeVariables: Variables;
+  processEnvVars: Variables;
+  timeout: number;
+  warnings: string[];
+}
+
+const requestKey = (item: HttpRequest): string =>
+  getItemUuid(item) || `${getItemName(item) ?? ''}|${getHttpMethod(item)}|${getRequestUrl(item)}`;
 
 interface DeclaredEnvironmentVariable {
   name?: string;
@@ -24,7 +44,7 @@ export interface RunRequestOptions {
   item: HttpRequest;
   collection: OpenCollectionCollection;
   environment?: Environment;
-  runtimeVariables?: Record<string, any>;
+  runtimeVariables?: Variables;
   timeout?: number;
   validateSSL?: boolean;
 }
@@ -39,8 +59,8 @@ export interface TestResultsResponse {
   results: Array<{
     status: string;
     description: string;
-    expected?: any;
-    actual?: any;
+    expected?: JsonValue;
+    actual?: JsonValue;
     error?: string;
   }>;
 }
@@ -57,7 +77,7 @@ export interface AssertionResultsResponse {
     lhsExpr?: string;
     rhsExpr?: string;
     operator?: string;
-    rhsOperand?: any;
+    rhsOperand?: JsonValue;
     error?: string;
   }>;
 }
@@ -65,9 +85,8 @@ export interface AssertionResultsResponse {
 export interface RunRequestResponse {
   status?: number;
   statusText?: string;
-  headers?: Record<string, any>;
-  data?: any;
-  dataBuffer?: Buffer;
+  headers?: Record<string, string>;
+  data?: JsonValue;
   /** Present only when needed downstream — binary previews, byte views, or an unreconstructable body. */
   base64Data?: string;
   /** Content type sniffed from the response bytes at parse time (magic numbers → SVG → text), or null. */
@@ -98,13 +117,63 @@ export class RequestRunner {
 
   async runRequest(options: RunRequestOptions): Promise<RunRequestResponse> {
     const { item, collection, environment, runtimeVariables = {}, timeout = 30000 } = options;
+    const context: RunContext = {
+      collection,
+      environment,
+      environmentVariables: this.getEnvironmentVariables(environment),
+      processEnvVars: (typeof process !== 'undefined' && process.env ? process.env : {}) as Record<string, string>,
+      runtimeVariables,
+      timeout,
+      warnings: []
+    };
+    return this.runRequestWithContext(item, context, 0, []);
+  }
+
+  private makeNestedRunRequest(
+    context: RunContext,
+    depth: number,
+    chain: string[],
+    currentItem: HttpRequest
+  ): RunRequestCallback {
+    return async (rawPath: string) => {
+      if (depth >= MAX_RUN_REQUEST_DEPTH) {
+        throw new Error(`bru.runRequest: exceeded the maximum nesting depth of ${MAX_RUN_REQUEST_DEPTH}`);
+      }
+      const target = findItemByPath(context.collection, rawPath);
+      if (!target) {
+        throw new Error(`bru.runRequest: invalid request path - ${rawPath}`);
+      }
+      if (!isHttpRequest(target)) {
+        throw new Error(`bru.runRequest does not support ${getItemType(target) || 'non-http'} requests`);
+      }
+      const nextChain = [...chain, requestKey(currentItem)];
+      if (nextChain.includes(requestKey(target))) {
+        throw new Error(`bru.runRequest: circular reference detected for "${rawPath}"`);
+      }
+
+      const response = await this.runRequestWithContext(target, context, depth + 1, nextChain);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      return {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data
+      };
+    };
+  }
+
+  private async runRequestWithContext(
+    item: HttpRequest,
+    context: RunContext,
+    depth: number,
+    chain: string[]
+  ): Promise<RunRequestResponse> {
+    const { collection, environmentVariables, runtimeVariables, processEnvVars, timeout, warnings } = context;
     const requestId = this.generateRequestId();
-    const warnings: string[] = [];
 
     try {
-      const environmentVariables = this.getEnvironmentVariables(environment);
-      const processEnvVars = typeof process !== 'undefined' && process.env ? process.env : {};
-
       const processedRequest: InternalHttpRequest = await this.preprocessRequest(item, collection);
       processedRequest.__bruno__executionMode = 'standalone';
 
@@ -119,6 +188,8 @@ export class RequestRunner {
         requestVariables
       };
 
+      const runRequest = this.makeNestedRunRequest(context, depth, chain, item);
+
       // Get scripts in object format for easier access
       const scriptsObj = scriptsArrayToObject(getRequestScripts(processedRequest));
       const assertions = getRequestAssertions(processedRequest);
@@ -132,7 +203,8 @@ export class RequestRunner {
             variables: allVariables,
             collectionName: collection.info?.name || '',
             collectionPath: '',
-            warnings
+            warnings,
+            runRequest
           });
         } catch (scriptError) {
           return {
@@ -157,7 +229,8 @@ export class RequestRunner {
             variables: allVariables,
             collectionName: collection.info?.name || '',
             collectionPath: '',
-            warnings
+            warnings,
+            runRequest
           });
         } catch (scriptError) {
           // Don't fail the request for post-response script errors, just log them
@@ -194,7 +267,8 @@ export class RequestRunner {
             collectionName: collection.info?.name || '',
             collectionPath: '',
             assertionResults,
-            warnings
+            warnings,
+            runRequest
           });
 
           // Capture test results and assertion results from bru object
@@ -230,27 +304,31 @@ export class RequestRunner {
     return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private getEnvironmentVariables(environment?: Environment): Record<string, any> {
+  private getEnvironmentVariables(environment?: Environment): Variables {
     // External secrets are referenced as ordinary `{{name}}` variables, so they
     // go in first and a variable declared on the environment with the same name
     // takes precedence over them.
     const externalSecrets = externalSecretValues(
       environment?.externalSecrets?.variables as ExternalSecretEntry[] | undefined
     );
-    if (!environment?.variables) return externalSecrets;
+    const vars: Variables = { ...externalSecrets };
+    if (environment?.name) {
+      vars.__name__ = environment.name;
+    }
+    if (!environment?.variables) return vars;
 
-    return environment.variables.reduce((vars, variable: DeclaredEnvironmentVariable) => {
+    return environment.variables.reduce((acc, variable: DeclaredEnvironmentVariable) => {
       const name = variable.name;
       if (name && !variable.disabled) {
         // Coerce typed values (number/boolean/object) to native, like folder/collection/request vars.
         // A secret carries its data type as a sibling `type` (value is a plain string), whereas a
         // non-secret nests it inside the value — so coerce each from the right place.
-        vars[name] = variable.secret
+        acc[name] = (variable.secret
           ? parseValueByDataType(variable.value as CoercedVariableValue, variable.type)
-          : coerceVariableValue(variable.value);
+          : coerceVariableValue(variable.value)) as JsonValue;
       }
-      return vars;
-    }, { ...externalSecrets } as Record<string, unknown>);
+      return acc;
+    }, vars);
   }
 
   private async preprocessRequest(
@@ -271,7 +349,7 @@ export class RequestRunner {
     return processed;
   }
 
-  getGlobalVariables(): Record<string, any> {
+  getGlobalVariables(): Variables {
     // todo
     return {};
   }

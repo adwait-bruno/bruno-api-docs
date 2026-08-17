@@ -1,6 +1,5 @@
 import type { OpenCollection } from '@opencollection/types';
 import type { Item } from '@opencollection/types/collection/item';
-import type { GrpcRequest } from '@opencollection/types/requests/grpc';
 import type {
   HttpRequest,
   HttpRequestBody,
@@ -21,7 +20,9 @@ import {
   getRequestScripts,
   scriptsArrayToObject,
   getRequestVariables,
-  getHttpHeaders,
+  getRequestHeaders,
+  pickSelectedVariant,
+  type SupportedRequestItem,
   type RequestItem
 } from './schemaHelpers';
 import { getItemUuid } from './itemUtils';
@@ -180,8 +181,8 @@ export const selectBodyVariant = (
 ): SelectedBody => {
   if (!body) return {};
   if (Array.isArray(body)) {
-    if (body.length === 0) return {};
-    const selected = body.find((v) => v.selected) ?? body[0];
+    const selected = pickSelectedVariant(body);
+    if (!selected) return {};
     const variants = body.map((v) => ({ title: v.title, selected: v === selected }));
     return { body: selected.body, variants: variants.length > 1 ? variants : undefined };
   }
@@ -277,7 +278,7 @@ const stepLabel = (level: ScriptLevel, phase: ScriptPhase): string => {
 export const buildScriptChain = (
   collection: OpenCollection | null | undefined,
   ancestors: Item[],
-  item: HttpRequest | GrpcRequest
+  item: SupportedRequestItem
 ): ScriptChainStep[] => {
   const collectionScripts = scriptsArrayToObject(collection?.request?.scripts);
   const sources: ScriptSource[] = [
@@ -344,13 +345,14 @@ const toPostResponseVarRow = (action: Action): PostResponseVarRow => ({
   disabled: action.disabled
 });
 
-export const getPreRequestVars = (item: HttpRequest | GrpcRequest): PreRequestVarRow[] =>
+export const getPreRequestVars = (item: SupportedRequestItem): PreRequestVarRow[] =>
   getRequestVariables(item).map(toPreRequestVarRow);
 
-export const getPostResponseVars = (item: HttpRequest | GrpcRequest): PostResponseVarRow[] =>
-  ((item as { runtime?: { actions?: Action[] } }).runtime?.actions ?? [])
-    .filter(isAfterResponseSetVariable)
-    .map(toPostResponseVarRow);
+export const getPostResponseVars = (item: SupportedRequestItem): PostResponseVarRow[] => {
+  const runtime = item.runtime;
+  const actions = runtime && 'actions' in runtime ? runtime.actions ?? [] : [];
+  return actions.filter(isAfterResponseSetVariable).map(toPostResponseVarRow);
+};
 
 // Bridge the OC actions model (after-response set-variable) to the editable Variables rows, and back.
 export const actionsToPostResponseVars = (actions: Action[] = []): PostResponseVar[] =>
@@ -473,10 +475,10 @@ export const collectInheritedConfig = (
 export const getInheritedConfig = (
   collection: OpenCollection | null | undefined,
   ancestry: Item[],
-  item: HttpRequest
+  item: SupportedRequestItem
 ): InheritedConfig =>
   collectInheritedConfig(collection, ancestry, {
-    headers: enabledHeaderKeys(getHttpHeaders(item)),
+    headers: enabledHeaderKeys(getRequestHeaders(item)),
     preVars: enabledVarKeys(getPreRequestVars(item)),
     postVars: enabledVarKeys(getPostResponseVars(item))
   });

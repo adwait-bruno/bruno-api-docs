@@ -28,6 +28,17 @@ config:
         - name: "bearer_auth_token"
           secret: true
           type: "string"
+        - name: "graphqlUrl"
+          value: "https://graphqlzero.almansi.me/api"
+        - name: "userId"
+          value: "1"
+        - name: "postId"
+          value: "1"
+        - name: "albumId"
+          value: "1"
+        - name: "bearerToken"
+          secret: true
+          type: "string"
     - name: "Prod"
       color: "#dc2626"
       variables:
@@ -146,9 +157,73 @@ items:
           * **Message Size Limits:** While the protocol itself supports large messages, practically all implementations (like Tomcat, Cloudflare Workers, or Kong) enforce message size limits to prevent out-of-memory crashes.
           * **Handling Large Payloads:** If you need to transfer large files or data, most developers use **chunking** (splitting data into smaller pieces) or push a tiny notification to the client requesting it to fetch the data from a standard REST endpoint.
           * **Scalability:** Maintaining thousands of open connections consumes server resources. Developers often scale horizontally by placing a **message broker** (like Redis or RabbitMQ) between multiple WebSocket servers so that messages are broadcasted to all users regardless of which server node they are connected to.
-      - name: "GraphQL API"
-        type: "graphql"
-        url: "{{host}}/graphql"
+      - info:
+          name: "GraphQL Details"
+          type: "graphql"
+          description: "Fetches a country's name, capital, and emoji by its ISO country code."
+        graphql:
+          method: "POST"
+          url: "https://api.example.com/graphql"
+          headers:
+            - name: "x-api-key"
+              value: "abc123"
+              description: "This is the description for the api key"
+          body:
+            query: |-
+              query {
+                country(code: "IN") {
+                  name
+                  capital
+                  emoji
+                }
+              }
+            variables: |-
+              {
+                "countryCode": "{{countryCode}}"
+              }
+          auth:
+            type: "basic"
+            username: "user@example.com"
+            password: "supersecretpassword"
+        runtime:
+          variables:
+            - name: "countryCode"
+              value: "IN"
+              description: "Country code to query"
+            - name: "baseURL"
+              value: "https://countries.trevorblades.com/graphql"
+              description: "GraphQL endpoint"
+            - name: "authToken"
+              value: "test-token"
+              description: "Sample bearer token"
+          actions:
+            - type: set-variable
+              phase: after-response
+              description: "country name"
+              selector:
+                expression: res.body.data.country.name
+                method: jsonq
+              variable:
+                name: countryName
+                scope: runtime
+            - type: set-variable
+              phase: after-response
+              description: "capital city"
+              selector:
+                expression: res.body.data.country.capital
+                method: jsonq
+              variable:
+                name: capital
+                scope: runtime
+            - type: set-variable
+              phase: after-response
+              description: "country emoji"
+              selector:
+                expression: res.body.data.country.emoji
+                method: jsonq
+              variable:
+                name: emoji
+                scope: runtime
       - info:
           name: "Order Service"
           type: "grpc"
@@ -2598,5 +2673,397 @@ items:
             type: "json"
             data: |
               {}
+
+  - info:
+      name: "GraphQL Fixtures"
+      type: "folder"
+    docs: "Read-only GraphQL request pages for testing docs rendering: queries, mutations, variables, headers, params, auth, execution context, and empty states."
+    items:
+      - info:
+          name: "01 Queries"
+          type: "folder"
+        docs: "Read-only query docs: simple query, variables, nested selection."
+        items:
+          - info:
+              name: "Simple Query"
+              type: "graphql"
+              description: "Simple albums query. No variables block."
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  query Albums {
+                    albums {
+                      data {
+                        id
+                        title
+                      }
+                    }
+                  }
+                variables: ""
+              auth: inherit
+            docs: "Simple albums query against GraphQLZero. No variables block."
+          - info:
+              name: "Query With Variables"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  query User($id: ID!) {
+                    user(id: $id) {
+                      id
+                      name
+                      email
+                      username
+                    }
+                  }
+                variables: |-
+                  {
+                    "id": "{{userId}}"
+                  }
+              auth: inherit
+            docs: "User-by-id query. Variables should render in Collection Docs."
+          - info:
+              name: "Nested Query"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+                - name: "Accept"
+                  value: "application/json"
+              body:
+                query: |-
+                  query PostWithUser($id: ID!) {
+                    post(id: $id) {
+                      id
+                      title
+                      body
+                      user {
+                        id
+                        name
+                        email
+                      }
+                    }
+                  }
+                variables: |-
+                  {
+                    "id": "{{postId}}"
+                  }
+              auth: inherit
+            docs: "Nested post + user selection."
+      - info:
+          name: "02 Mutations"
+          type: "folder"
+        docs: "GraphQL mutations with variables for docs rendering."
+        items:
+          - info:
+              name: "Create Post"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  mutation CreatePost($input: CreatePostInput!) {
+                    createPost(input: $input) {
+                      id
+                      title
+                      body
+                    }
+                  }
+                variables: |-
+                  {
+                    "input": {
+                      "title": "BRU-3718 sample post",
+                      "body": "Created from GraphQL docs fixture"
+                    }
+                  }
+              auth: inherit
+            docs: "CreatePost mutation."
+          - info:
+              name: "Update Post"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  mutation UpdatePost($id: ID!, $input: UpdatePostInput!) {
+                    updatePost(id: $id, input: $input) {
+                      id
+                      title
+                      body
+                    }
+                  }
+                variables: |-
+                  {
+                    "id": "{{postId}}",
+                    "input": {
+                      "title": "Updated via BRU-3718 fixture"
+                    }
+                  }
+              auth: inherit
+            docs: "UpdatePost mutation with two variables."
+      - info:
+          name: "03 Auth And Headers"
+          type: "folder"
+        docs: "GraphQL requests with auth, headers, and query params."
+        items:
+          - info:
+              name: "Bearer Auth Query"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  query User($id: ID!) {
+                    user(id: $id) {
+                      id
+                      name
+                      email
+                    }
+                  }
+                variables: |-
+                  {
+                    "id": "{{userId}}"
+                  }
+              auth:
+                type: "bearer"
+                token: "{{bearerToken}}"
+            docs: "Request-level bearer auth (not inherit)."
+          - info:
+              name: "Headers And Params"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+                - name: "Accept"
+                  value: "application/json"
+                - name: "X-Client"
+                  value: "bru-3718-docs"
+                - name: "X-Request-Source"
+                  value: "collection-docs"
+              params:
+                - name: "source"
+                  value: "docs-fixture"
+                  type: "query"
+                  description: "Tracking param for docs rendering"
+                - name: "debug"
+                  value: "true"
+                  type: "query"
+                  description: "Disabled - should still appear in docs as disabled"
+                  disabled: true
+              body:
+                query: |-
+                  query Album($id: ID!) {
+                    album(id: $id) {
+                      id
+                      title
+                    }
+                  }
+                variables: |-
+                  {
+                    "id": "{{albumId}}"
+                  }
+              auth: inherit
+            docs: "Album query with extra headers and query params."
+          - info:
+              name: "No Auth Query"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  query {
+                    __typename
+                  }
+                variables: ""
+            docs: "Minimal introspection-style query with no auth."
+      - info:
+          name: "04 Execution Context"
+          type: "folder"
+        docs: "Scripts, request vars, asserts, and tests on GraphQL requests."
+        items:
+          - info:
+              name: "Scripts Asserts Tests"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+                - name: "X-Trace"
+                  value: "{{requestTraceId}}"
+              body:
+                query: |-
+                  query User($id: ID!) {
+                    user(id: $id) {
+                      id
+                      name
+                      email
+                    }
+                  }
+                variables: |-
+                  {
+                    "id": "{{userId}}"
+                  }
+              auth: inherit
+            runtime:
+              scripts:
+                - type: before-request
+                  code: |-
+                    console.log("BRU-3718 GraphQL before-request");
+                    req.setHeader("X-Trace", bru.getVar("requestTraceId") || "missing");
+                - type: after-response
+                  code: |-
+                    bru.setVar("lastGqlStatus", String(res.status));
+                    console.log("BRU-3718 GraphQL after-response", res.status);
+                - type: tests
+                  code: |-
+                    test("status is 200", function () {
+                      expect(res.status).to.equal(200);
+                    });
+                    test("user id present", function () {
+                      expect(res.body.data.user.id).to.equal(bru.getVar("expectedUserId"));
+                    });
+              variables:
+                - name: "requestTraceId"
+                  value: "gql-trace-3718"
+                - name: "expectedUserId"
+                  value: "1"
+              assertions:
+                - expression: res.status
+                  operator: eq
+                  value: "200"
+                - expression: res.body.data.user.id
+                  operator: eq
+                  value: "1"
+            docs: "GraphQL request with pre/post scripts, tests, assertions, and request vars."
+      - info:
+          name: "05 Empty States"
+          type: "folder"
+        docs: "Minimal GraphQL pages so docs can show neat empty sections."
+        items:
+          - info:
+              name: "Minimal GraphQL"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              body:
+                query: |-
+                  query {
+                    __typename
+                  }
+                variables: ""
+          - info:
+              name: "Query Empty Variables"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  query Albums {
+                    albums {
+                      data {
+                        id
+                        title
+                      }
+                    }
+                  }
+                variables: "{}"
+              auth: inherit
+            docs: "Variables block present but empty."
+          - info:
+              name: "Query No Docs"
+              type: "graphql"
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  query Photo($id: ID!) {
+                    photo(id: $id) {
+                      id
+                      title
+                      url
+                    }
+                  }
+                variables: |-
+                  {
+                    "id": "1"
+                  }
+              auth: inherit
+      - info:
+          name: "06 Subscriptions"
+          type: "folder"
+        docs: "GraphQL subscription operations for docs rendering."
+        items:
+          - info:
+              name: "Comment Added Subscription"
+              type: "graphql"
+              description: "Real-time subscription to new comments on a post."
+            graphql:
+              url: "{{graphqlUrl}}"
+              method: "POST"
+              headers:
+                - name: "Content-Type"
+                  value: "application/json"
+              body:
+                query: |-
+                  subscription OnCommentAdded($postId: ID!) {
+                    commentAdded(postId: $postId) {
+                      id
+                      content
+                      createdAt
+                      author {
+                        id
+                        name
+                      }
+                    }
+                  }
+                variables: |-
+                  {
+                    "postId": "{{postId}}"
+                  }
+              auth: inherit
+            docs: "Subscription operation. Docs should render the subscription query and variables like a query/mutation."
 
 `;

@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
+import type { GraphQLRequest } from '@opencollection/types/requests/graphql';
 import type { ScriptFile, Folder as FolderItem } from '@opencollection/types/collection/item';
 import type { RequestItem } from '../../utils/schemaHelpers';
 import { useActiveResolution, useNavModel } from '../../routing/hooks';
@@ -17,6 +18,7 @@ import { ErrorBoundary } from '../ErrorBoundary/ErrorBoundary';
 import { StyledWrapper } from './StyledWrapper';
 import { Overview } from '../../pages/Overview/Overview';
 import Request from '../../pages/Request/Request';
+import GraphqlRequest from '@/pages/GraphqlRequest/GraphqlRequest';
 import Script from '../../pages/Script/Script';
 import Folder from '../../pages/Folder/Folder';
 import Environments from '../../pages/Environments/Environments';
@@ -87,6 +89,17 @@ const PageRouter: React.FC<PageRouterProps> = ({ onOpenPlayground, testId = 'pag
       case 'script':
         return item ? (
           <Script item={item as ScriptFile} ancestry={ancestry} collection={collection} onBreadcrumbClick={goToUuid} />
+        ) : null;
+      case 'graphql':
+        return item ? (
+          <ItemVariableResolverProvider collection={collection} ancestry={ancestry} item={item as Item}>
+            <GraphqlRequest
+              item={item as GraphQLRequest}
+              ancestry={ancestry}
+              collection={collection}
+              onBreadcrumbClick={goToUuid}
+            />
+          </ItemVariableResolverProvider>
         ) : null;
       case 'request':
       default:

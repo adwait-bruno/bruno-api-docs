@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { prefersReducedMotion } from '../../utils/motion';
+import { prefersReducedMotion } from '@/utils/motion';
 import { ExpandToggle } from '../ExpandToggle/ExpandToggle';
 import { StyledWrapper } from './StyledWrapper';
 

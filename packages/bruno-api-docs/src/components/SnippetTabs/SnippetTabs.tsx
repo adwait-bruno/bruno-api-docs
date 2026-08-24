@@ -18,7 +18,7 @@ export interface Snippet {
 
 interface SnippetTabsProps {
   snippets: Snippet[];
-  variant?: 'inline' | 'embedded';
+  variant?: 'inline' | 'embedded' | 'icon';
   className?: string;
   testId?: string;
 }
@@ -102,6 +102,18 @@ export const SnippetTabs: React.FC<SnippetTabsProps> = ({
     <StyledWrapper className={cx('code-snippet-tabs', className)} data-testid={testId}>
       {variant === 'inline' ? (
         renderSnippetBox('inline', active, setActive)
+      ) : variant === 'icon' ? (
+        <button
+          ref={triggerRef}
+          type="button"
+          className="snippet-icon-trigger"
+          aria-haspopup="dialog"
+          aria-label="Generate Code"
+          data-testid={`${testId}-trigger`}
+          onClick={openModal}
+        >
+          <IconCode size={16} stroke={1.5} />
+        </button>
       ) : (
         <button
           ref={triggerRef}

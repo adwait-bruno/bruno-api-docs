@@ -3,7 +3,8 @@ import { IconCode } from '@tabler/icons';
 import cx from '@/utils/cx';
 import { Code } from '../Code/Code';
 import { CopyButton } from '@/ui/CopyButton/CopyButton';
-import { useResolvedVariables } from '@/hooks';
+import Checkbox from '@/ui/Checkbox/Checkbox';
+import { ShowVarsOverrideProvider, useResolvedVariables } from '@/hooks';
 import { SectionLabel } from '../SectionLabel/SectionLabel';
 import { Modal } from '@/ui/Modal/Modal';
 import { ExpandIcon } from '@/assets/icons';
@@ -19,6 +20,7 @@ export interface Snippet {
 interface SnippetTabsProps {
   snippets: Snippet[];
   variant?: 'inline' | 'embedded' | 'icon';
+  interpolation?: 'showVars' | 'switch';
   className?: string;
   testId?: string;
 }
@@ -26,6 +28,7 @@ interface SnippetTabsProps {
 export const SnippetTabs: React.FC<SnippetTabsProps> = ({
   snippets,
   variant = 'inline',
+  interpolation = 'showVars',
   className,
   testId = 'request-code-snippet'
 }) => {
@@ -33,12 +36,15 @@ export const SnippetTabs: React.FC<SnippetTabsProps> = ({
   const [activeModalId, setActiveModalId] = useState<string>(snippets[0]?.id ?? '');
   const [expanded, setExpanded] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const { showVars, resolve } = useResolvedVariables();
+  const { showVars, resolve, interpolate } = useResolvedVariables();
+  const ownSwitch = interpolation === 'switch';
+  const [shouldInterpolate, setShouldInterpolate] = useState(true);
 
   if (snippets.length === 0) return null;
 
   const openModal = () => {
     setActiveModalId(active);
+    if (!ownSwitch) setShouldInterpolate(showVars);
     setExpanded(true);
   };
 
@@ -50,7 +56,8 @@ export const SnippetTabs: React.FC<SnippetTabsProps> = ({
   const renderSnippetBox = (placement: 'inline' | 'modal', activeId: string, setActiveId: (id: string) => void) => {
     const activeSnippet = snippets.find((snippet) => snippet.id === activeId) ?? snippets[0];
     const code = activeSnippet.code;
-    const copyText = showVars ? resolve(code) : code;
+    const isModal = placement === 'modal';
+    const copyText = isModal ? (shouldInterpolate ? interpolate(code) : code) : resolve(code);
     return (
       <div className="snippet-box">
         <div className="snippet-head">
@@ -70,6 +77,17 @@ export const SnippetTabs: React.FC<SnippetTabsProps> = ({
             ))}
           </div>
           <span className="snippet-head-spacer" />
+          {isModal && (
+            <label className="snippet-interpolate">
+              <Checkbox
+                checked={shouldInterpolate}
+                ariaLabel="Interpolate Variables"
+                testId={`${testId}-interpolate`}
+                onChange={(event) => setShouldInterpolate(event.target.checked)}
+              />
+              <span>Interpolate Variables</span>
+            </label>
+          )}
           {placement === 'inline' ? (
             <button
               ref={triggerRef}
@@ -123,9 +141,11 @@ export const SnippetTabs: React.FC<SnippetTabsProps> = ({
         ariaLabel="Code snippet"
       >
         {expanded && (
-          <StyledWrapper className="code-snippet-tabs is-modal" data-testid={`${testId}-modal`}>
-            {renderSnippetBox('modal', activeModalId, setActiveModalId)}
-          </StyledWrapper>
+          <ShowVarsOverrideProvider showVars={shouldInterpolate}>
+            <StyledWrapper className="code-snippet-tabs is-modal" data-testid={`${testId}-modal`}>
+              {renderSnippetBox('modal', activeModalId, setActiveModalId)}
+            </StyledWrapper>
+          </ShowVarsOverrideProvider>
         )}
       </Modal>
     </StyledWrapper>

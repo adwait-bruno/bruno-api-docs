@@ -24,6 +24,7 @@ export {
   useResolvedVariables,
   VariableResolverProvider,
   ItemVariableResolverProvider,
+  ShowVarsOverrideProvider,
   type VariableResolver,
   type VariableLookup
 } from './useVariableResolver';

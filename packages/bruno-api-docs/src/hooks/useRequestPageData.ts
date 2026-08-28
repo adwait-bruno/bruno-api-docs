@@ -12,6 +12,8 @@ import {
   getRequestAuth,
   getItemDocs,
   getItemDescription,
+  getItemTags,
+  getInheritedTags,
   type SupportedRequestItem
 } from '@/utils/schemaHelpers';
 import {
@@ -38,6 +40,8 @@ export const useRequestPageData = (
   const md = useMarkdownRenderer();
 
   const name = getItemName(item) || 'Untitled Request';
+  const tags = useMemo(() => getItemTags(item), [item]);
+  const inheritedTags = useMemo(() => getInheritedTags(ancestry, tags), [ancestry, tags]);
   const url = getRequestUrl(item);
   const headers = getRequestHeaders(item);
   const params = getRequestParams(item);
@@ -102,6 +106,8 @@ export const useRequestPageData = (
 
   return {
     name,
+    tags,
+    inheritedTags,
     url,
     descHtml,
     pathParams,

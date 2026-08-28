@@ -1,34 +1,17 @@
-/**
- * Search index for the collection palette.
- *
- * Turns the routing NavModel's ordered entries into flat, scoreable records:
- * one per request node and one per folder node, at any depth. Each record's
- * `id` is the item UUID, the exact identifier the sidebar keys on.
- *
- * Requests match on name and url; folders match on name alone, since a folder
- * is not an endpoint and has no url to match or display.
- *
- * Pure + React-free so it can be unit tested and memoized by the caller.
- */
-
 import Fuse from 'fuse.js';
 import type { IFuseOptions, FuseResultMatch } from 'fuse.js';
 import type { Folder } from '@opencollection/types/collection/item';
 import type { NavEntry } from '@/routing/types';
-import { getRequestUrl } from '@/utils/schemaHelpers';
+import { getRequestUrl, getItemTags } from '@/utils/schemaHelpers';
 import { getItemUuid } from '@/utils/itemUtils';
 import { countFolderRequests } from '@/utils/folder';
 
 interface SearchRecordBase {
-  /** Item UUID (the sidebar key). */
   id: string;
-  /** Route target slug. */
   slug: string;
   name: string;
-  /** Ancestor folder names, outermost first; joined for display, never searched. */
   ancestorNames: string[];
-  /** Ancestor folder slugs, for the folder filter chip. */
-  ancestorSlugs: string[];
+  tags: string[];
 }
 
 export interface RequestSearchRecord extends SearchRecordBase {
@@ -44,27 +27,35 @@ export interface FolderSearchRecord extends SearchRecordBase {
 
 export type SearchRecord = RequestSearchRecord | FolderSearchRecord;
 
-/** A folder offered in the palette's folder filter dropdown. */
-export interface FolderOption {
-  slug: string;
-  name: string;
-}
-
 const BREADCRUMB_SEPARATOR = ' / ';
+
+// GraphQL requests route to their own page type but are requests for search.
+const isRequestEntry = (entry: NavEntry): boolean => entry.type === 'request' || entry.type === 'graphql';
 
 /** Build the searchable records (requests + folders) from the nav model. */
 export const buildSearchRecords = (entries: NavEntry[]): SearchRecord[] => {
+  const folderTagsBySlug = new Map<string, string[]>();
+  for (const entry of entries) {
+    if (entry.type !== 'folder' || !entry.item) continue;
+    const folderTags = getItemTags(entry.item);
+    if (folderTags.length > 0) folderTagsBySlug.set(entry.slug, folderTags);
+  }
+
   const records: SearchRecord[] = [];
   for (const entry of entries) {
     if (!entry.item) continue;
     const id = getItemUuid(entry.item);
-    if (!id) continue; // unhydrated, cannot key to the sidebar; skip
+    if (!id) continue;
+    const tags = new Set(getItemTags(entry.item));
+    for (const ancestor of entry.ancestors) {
+      for (const tag of folderTagsBySlug.get(ancestor.slug) ?? []) tags.add(tag);
+    }
     const common = {
       id,
       slug: entry.slug,
       name: entry.name,
       ancestorNames: entry.ancestors.map((a) => a.name),
-      ancestorSlugs: entry.ancestors.map((a) => a.slug)
+      tags: [...tags]
     };
 
     if (entry.type === 'folder') {
@@ -73,7 +64,7 @@ export const buildSearchRecords = (entries: NavEntry[]): SearchRecord[] => {
         ...common,
         requestCount: countFolderRequests(entry.item as Folder)
       });
-    } else if (entry.type === 'request') {
+    } else if (isRequestEntry(entry)) {
       records.push({
         type: 'request',
         ...common,
@@ -88,9 +79,7 @@ export const buildSearchRecords = (entries: NavEntry[]): SearchRecord[] => {
 const MAX_BREADCRUMB_SEGMENTS = 3;
 
 export interface BreadcrumbText {
-  /** Every ancestor, for the accessible name and the tooltip. */
   full: string;
-  /** What the row paints; equals `full` until the chain is too long. */
   display: string;
 }
 
@@ -107,24 +96,20 @@ export const formatBreadcrumb = (ancestorNames: string[]): BreadcrumbText => {
   return { full, display: ends.join(BREADCRUMB_SEPARATOR) };
 };
 
-/** Top-level folders, for the folder filter dropdown. */
-export const collectTopLevelFolders = (entries: NavEntry[]): FolderOption[] =>
-  entries
-    .filter((e) => e.type === 'folder' && e.depth === 0)
-    .map((e) => ({ slug: e.slug, name: e.name }));
+export const collectTags = (records: SearchRecord[]): string[] => {
+  const seen = new Set<string>();
+  for (const record of records) {
+    for (const tag of record.tags) seen.add(tag);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b));
+};
 
-/** Canonical display order for method filters; anything not listed sorts last. */
 const METHOD_DISPLAY_ORDER = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE', 'CONNECT'];
 
-/**
- * Distinct request methods present in the collection, uppercased, in canonical
- * order (custom methods last, alphabetical). Drives the method filters so any
- * method actually in use (PATCH/HEAD/OPTIONS/custom) is offered, not a fixed list.
- */
 export const collectMethods = (entries: NavEntry[]): string[] => {
   const seen = new Set<string>();
   for (const e of entries) {
-    if (e.type !== 'request') continue;
+    if (!isRequestEntry(e)) continue;
     const m = e.method?.toUpperCase();
     if (m) seen.add(m);
   }
@@ -138,13 +123,10 @@ export const collectMethods = (entries: NavEntry[]): string[] => {
   });
 };
 
-/** Searchable + highlightable fields, in weight order (name dominates). */
 type SearchField = 'name' | 'url';
 
-/** Matched character ranges per field, as inclusive [start, end] pairs. */
 export type FieldMatches = Partial<Record<SearchField, Array<[number, number]>>>;
 
-/** A ranked result plus the ranges that matched, so the row can bold them. */
 export interface SearchHit {
   record: SearchRecord;
   matches: FieldMatches;
@@ -184,17 +166,10 @@ const collectMatches = (matches: readonly FuseResultMatch[] | undefined): FieldM
   }
   return byField;
 };
-
 /**
- * Adjacent-character swaps of `query`, e.g. "hotles" → ["ohtles", "htoles",
- * "holtes", "hotels", "hotlse"]. Bitap scores a transposition as two edits, so
- * a swap-typo on a short word ("hotles" → "hotels") busts the threshold and is
- * missed. Searching these variants restores the correction as a near-exact hit
- * without loosening the threshold (which would reopen prefix-bleed matches).
- * Swaps of equal neighbours are skipped (they reproduce the original). Long
- * queries are not expanded: they are far more likely a pasted string than a
- * mistyped word, and expansion is one Fuse pass per character position.
- */
+* Keeping a threshold of 24 for queries, a longer string is far more likely a
+* pasted string like a URL rather than a mistyped word.
+*/
 const MAX_SWAP_QUERY_LENGTH = 24;
 
 const adjacentSwaps = (query: string): string[] => {
@@ -207,37 +182,13 @@ const adjacentSwaps = (query: string): string[] => {
   return variants;
 };
 
-/**
- * A swap variant must come back near-exact to count: a genuine de-typo lands at
- * ~0 (the corrected word is really there), whereas a variant that only fuzzily
- * grazes an unrelated record scores higher and is noise. This gate only applies
- * to records the original query did NOT already surface.
- */
 const TRANSPOSITION_MAX_SCORE = 0.1;
 
-/**
- * Folders form a block above requests, matching how the sidebar orders a level.
- * The grouping is unconditional, so a fuzzy folder hit outranks an exact request
- * hit; score only decides the order within a block.
- */
 const groupRank = (record: SearchRecord): number => (record.type === 'folder' ? 0 : 1);
 
-/**
- * Apply that same grouping to an already-ordered list, for the filter-only
- * results the palette builds without running a query. The sort is stable, so
- * each group keeps its incoming (nav) order.
- */
 export const orderFoldersFirst = (hits: SearchHit[]): SearchHit[] =>
   [...hits].sort((a, b) => groupRank(a.record) - groupRank(b.record));
 
-/**
- * Rank records against a query (text only; filters are applied separately by
- * the caller). Empty query → [] (the palette shows its initial empty state,
- * not the whole collection). The original query runs at the normal threshold;
- * adjacent-swap variants back-fill transposition typos the threshold misses.
- * Each record is kept at its best (lowest) score, so a variant that corrects a
- * typo also improves the row's rank and highlight.
- */
 export const searchHits = (fuse: Fuse<SearchRecord>, query: string): SearchHit[] => {
   const q = query.trim();
   if (!q) return [];

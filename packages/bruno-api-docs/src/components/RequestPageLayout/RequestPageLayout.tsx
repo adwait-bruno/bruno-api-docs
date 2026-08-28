@@ -16,6 +16,7 @@ import { PropertyTable } from '@/components/PropertyTable/PropertyTable';
 import { InheritedAuthBadge } from '@/components/InheritedAuthBadge/InheritedAuthBadge';
 import { ExecutionContext } from '@/components/ExecutionContext/ExecutionContext';
 import { CodeSnippetTabs } from '@/components/CodeSnippetTabs/CodeSnippetTabs';
+import { Tags } from '@/components/Tags/Tags';
 import type { HttpRequestBody, HttpRequestBodyVariant } from '@opencollection/types/requests/http';
 import type { RequestPageData } from '@/hooks/useRequestPageData';
 import { StyledWrapper } from './StyledWrapper';
@@ -52,6 +53,8 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
 }) => {
   const {
     name,
+    tags,
+    inheritedTags,
     url,
     descHtml,
     pathParams,
@@ -165,6 +168,21 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
                 auth={effectiveAuth}
               />
             </Section>
+            {(tags.length > 0 || inheritedTags.length > 0) && (
+              <Section
+                label="Tags"
+                testId="request-section-tags"
+                hideFromNav
+                labelClassName="section-label-lower"
+                badge={
+                  inheritedTags.length > 0 ? (
+                    <ContentTypeBadge label={inheritedCountLabel(inheritedTags.length, 'tag')} />
+                  ) : undefined
+                }
+              >
+                <Tags tags={tags} inheritedTags={inheritedTags} testId="request-tags" />
+              </Section>
+            )}
           </div>
         </div>
 

@@ -14,6 +14,8 @@ import {
   getGrpcMessages,
   getGrpcProtoFileName,
   getGrpcProtoFilePath,
+  getItemTags,
+  getInheritedTags,
   countEnabled
 } from '@/utils/schemaHelpers';
 import {
@@ -21,13 +23,15 @@ import {
   getPreRequestVars,
   getPostResponseVars,
   buildScriptChain,
-  getScriptFlow
+  getScriptFlow,
+  inheritedCountLabel
 } from '@/utils/request';
 import { collectAssertions } from '@/utils/assertions';
 import { collectTests, collectRawTestScripts } from '@/utils/fileUtils';
 import { ExecutionContext } from '@/components/ExecutionContext/ExecutionContext';
 import { generateGrpcurlCommand, generateGrpcJavaScriptCode, grpcMethodPath } from '@/utils/grpcSnippets';
 import { SnippetTabs, type Snippet } from '@/components/SnippetTabs/SnippetTabs';
+import { Tags } from '@/components/Tags/Tags';
 import { useMarkdownRenderer, useResolvedVariables } from '@/hooks';
 import { singleReferenceName } from '@/utils/variableResolution';
 import { buildBreadcrumbSegments } from '@/utils/common';
@@ -69,6 +73,8 @@ export const GrpcRequest: React.FC<GrpcRequestProps> = ({
   testId = 'grpc-request-page'
 }) => {
   const name = getItemName(item) || 'Untitled Request';
+  const tags = useMemo(() => getItemTags(item), [item]);
+  const inheritedTags = useMemo(() => getInheritedTags(ancestry, tags), [ancestry, tags]);
   const url = getRequestUrl(item);
 
   const method = getGrpcMethod(item);
@@ -127,6 +133,18 @@ export const GrpcRequest: React.FC<GrpcRequestProps> = ({
     return built;
   }, [url, resolvedUrl, method, methodType, protoFilePath, metadata, messages, effectiveAuth]);
 
+  const hasRightColumn = snippets.length > 0 || tags.length > 0 || inheritedTags.length > 0;
+
+  const configEmptyState = (
+    <EmptyState
+      className="grpc-request-empty"
+      testId="grpc-request-config-empty"
+      icon={<FileIcon />}
+      heading="No request configuration"
+      subheading="This request has no method, messages, metadata, or authentication configured."
+    />
+  );
+
   const md = useMarkdownRenderer();
 
   const descHtml = useMemo(() => {
@@ -180,9 +198,10 @@ export const GrpcRequest: React.FC<GrpcRequestProps> = ({
           </ViewMore>
         )}
 
-        {hasLeftColumn ? (
+        {hasLeftColumn || hasRightColumn ? (
           <div className="grpc-request-columns">
             <div className="grpc-request-col-left">
+              {!hasLeftColumn && configEmptyState}
               {protoFileName && (
                 <Section
                   label="Proto file"
@@ -268,22 +287,32 @@ export const GrpcRequest: React.FC<GrpcRequestProps> = ({
               )}
             </div>
 
-            {snippets.length > 0 && (
+            {hasRightColumn && (
               <div className="grpc-request-col-right">
-                <Section label="Code snippet" testId="grpc-request-section-code-snippet" hideFromNav>
-                  <SnippetTabs snippets={snippets} testId="grpc-request-code-snippet" />
-                </Section>
+                {snippets.length > 0 && (
+                  <Section label="Code snippet" testId="grpc-request-section-code-snippet" hideFromNav>
+                    <SnippetTabs snippets={snippets} testId="grpc-request-code-snippet" />
+                  </Section>
+                )}
+                {(tags.length > 0 || inheritedTags.length > 0) && (
+                  <Section
+                    label="Tags"
+                    testId="grpc-request-section-tags"
+                    hideFromNav
+                    badge={
+                      inheritedTags.length > 0 ? (
+                        <ContentTypeBadge label={inheritedCountLabel(inheritedTags.length, 'tag')} />
+                      ) : undefined
+                    }
+                  >
+                    <Tags tags={tags} inheritedTags={inheritedTags} testId="grpc-request-tags" />
+                  </Section>
+                )}
               </div>
             )}
           </div>
         ) : (
-          <EmptyState
-            className="grpc-request-empty"
-            testId="grpc-request-config-empty"
-            icon={<FileIcon />}
-            heading="No request configuration"
-            subheading="This request has no method, messages, metadata, or authentication configured."
-          />
+          configEmptyState
         )}
 
         <Section

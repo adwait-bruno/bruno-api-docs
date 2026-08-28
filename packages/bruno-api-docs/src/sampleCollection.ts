@@ -4,6 +4,7 @@ info:
   name: "Bruno Testbench"
   summary: "A comprehensive API collection for testing OpenCollection features"
   version: "1.0.0"
+  tags: ["testbench"]
 config:
   environments:
     - name: "Local"
@@ -136,6 +137,7 @@ items:
       - name: "Live Updates"
         description: "Streams live order updates over a WebSocket connection."
         type: "websocket"
+        tags: ["realtime"]
         url: "{{host}}/ws/updates"
         docs: |
           # Websockets
@@ -161,6 +163,7 @@ items:
           name: "GraphQL Details"
           type: "graphql"
           description: "Fetches a country's name, capital, and emoji by its ISO country code."
+          tags: ["catalog"]
         graphql:
           method: "POST"
           url: "https://api.example.com/graphql"
@@ -227,6 +230,7 @@ items:
       - info:
           name: "Order Service"
           type: "grpc"
+          tags: ["orders"]
         grpc:
           url: "{{grpcUrl}}"
           method: "/orders.OrderService/GetOrder"
@@ -598,6 +602,7 @@ items:
       name: billing
       type: folder
       seq: 4
+      tags: ["billing"]
     docs: |
       ## Billing
 
@@ -632,6 +637,7 @@ items:
           name: customers
           type: folder
           seq: 1
+          tags: ["customers"]
         request:
           auth: inherit
           scripts:
@@ -656,6 +662,7 @@ items:
               name: Get All Customers
               type: http
               seq: 1
+              tags: ["smoke"]
             http:
               method: GET
               url: '{{baseUrl}}/billing/customers'
@@ -1815,6 +1822,7 @@ items:
               name: Get All Subscriptions
               type: http
               seq: 1
+              tags: ["billing"]
             http:
               method: GET
               url: '{{baseUrl}}/billing/subscriptions'
@@ -2065,6 +2073,7 @@ items:
   - name: "echo json"
     type: "http"
     seq: 2
+    tags: ["echo", "smoke"]
     method: "POST"
     url: "{{host}}/api/echo/json"
     headers:
@@ -2226,6 +2235,7 @@ items:
   - name: "get users"
     type: "http"
     seq: 1
+    tags: ["users", "smoke"]
     method: "GET"
     url: "{{host}}/api/users?page=1&limit=10"
     headers:
@@ -2297,6 +2307,7 @@ items:
   - name: "update user"
     type: "http"
     seq: 4
+    tags: ["users"]
     method: "PUT"
     url: "{{host}}/api/users/1"
     headers:

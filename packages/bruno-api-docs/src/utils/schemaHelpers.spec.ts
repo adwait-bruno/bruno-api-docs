@@ -17,12 +17,17 @@ import {
   getGrpcMethodType,
   getGrpcMetadata,
   getGrpcProtoFileName,
+  getItemTags,
+  getCollectionTags,
+  getInheritedTags,
   type RequestItem
 } from './schemaHelpers';
 
 const item = (data: Record<string, unknown>): OpenCollectionItem => data as unknown as OpenCollectionItem;
 
 const requestItem = (data: Record<string, unknown>): RequestItem => data as unknown as RequestItem;
+
+const collection = (data: Record<string, unknown>) => data as unknown as Parameters<typeof getCollectionTags>[0];
 
 describe('getItemDescription', () => {
   it('reads a plain string description from the info block', () => {
@@ -297,5 +302,61 @@ describe('getGrpcProtoFileName', () => {
   it('returns undefined when no proto file is attached', () => {
     expect(getGrpcProtoFileName(item({ grpc: {} }))).toBeUndefined();
     expect(getGrpcProtoFileName(item({ type: 'grpc' }))).toBeUndefined();
+  });
+});
+
+describe('getItemTags', () => {
+  it('reads tags from the info block', () => {
+    expect(getItemTags(item({ info: { name: 'Login', tags: ['auth', 'smoke'] } }))).toEqual(['auth', 'smoke']);
+  });
+
+  it('falls back to root-level tags for old-schema items', () => {
+    expect(getItemTags(item({ name: 'Login', tags: ['auth'] }))).toEqual(['auth']);
+  });
+
+  it('prefers info tags over root tags when both exist', () => {
+    expect(getItemTags(item({ info: { tags: ['new'] }, tags: ['old'] }))).toEqual(['new']);
+  });
+
+  it('returns an empty array for missing or malformed tags', () => {
+    expect(getItemTags(undefined)).toEqual([]);
+    expect(getItemTags(null)).toEqual([]);
+    expect(getItemTags(item({}))).toEqual([]);
+    expect(getItemTags(item({ info: { tags: 'auth' } }))).toEqual([]);
+  });
+
+  it('drops non-string and blank entries', () => {
+    expect(getItemTags(item({ info: { tags: ['auth', '', '   ', 7, null] } }))).toEqual(['auth']);
+  });
+
+  it('trims whitespace and dedupes, so " auth" and "auth" are one tag', () => {
+    expect(getItemTags(item({ info: { tags: [' auth', 'auth', 'auth '] } }))).toEqual(['auth']);
+    expect(getItemTags(item({ info: { tags: ['  smoke  ', 'auth'] } }))).toEqual(['smoke', 'auth']);
+  });
+});
+
+describe('getInheritedTags', () => {
+  it('collects ancestor folder tags the item does not carry itself', () => {
+    const ancestry = [
+      item({ info: { name: 'billing', type: 'folder', tags: ['billing'] } }),
+      item({ info: { name: 'customers', type: 'folder', tags: ['customers', 'smoke'] } })
+    ];
+    expect(getInheritedTags(ancestry, ['smoke'])).toEqual(['billing', 'customers']);
+  });
+
+  it('returns an empty list for untagged ancestors', () => {
+    expect(getInheritedTags([item({ info: { name: 'f', type: 'folder' } })], ['auth'])).toEqual([]);
+    expect(getInheritedTags([], [])).toEqual([]);
+  });
+});
+
+describe('getCollectionTags', () => {
+  it('reads tags from the collection info block', () => {
+    expect(getCollectionTags(collection({ info: { name: 'Hotel Booking', tags: ['public'] } }))).toEqual(['public']);
+  });
+
+  it('returns an empty array when absent', () => {
+    expect(getCollectionTags(null)).toEqual([]);
+    expect(getCollectionTags(collection({ info: { name: 'Hotel Booking' } }))).toEqual([]);
   });
 });

@@ -16,7 +16,7 @@ const record: RequestSearchRecord = {
   name: 'Get All Hotels',
   method: 'GET',
   ancestorNames: ['Hotels', 'Browse & search'],
-  ancestorSlugs: ['hotels'],
+  tags: [],
   url: '{{baseUrl}}/api/v1/hotels'
 };
 
@@ -26,7 +26,7 @@ const folder: FolderSearchRecord = {
   slug: 'billing/customers/basic-auth',
   name: 'Basic Auth',
   ancestorNames: ['Billing', 'Customers'],
-  ancestorSlugs: ['billing', 'billing/customers'],
+  tags: [],
   requestCount: 12
 };
 
@@ -58,11 +58,11 @@ describe('SearchResultItem', () => {
   });
 
   it('shows a deep breadcrumb elided, naming the node with the whole chain', () => {
+    // The hidden folders are unreachable by pointer for keyboard and AT users,
+    // so the label has to carry them.
     const deep = { ...record, ancestorNames: ['Hotels', 'Auth', 'Auth 2', 'Legacy', 'v3'] };
     const html = renderToStaticMarkup(<SearchResultItem record={deep} onSelect={() => {}} />);
     expect(html).toContain('Hotels / … / v3');
-    // The hidden folders are unreachable by pointer for keyboard and AT users,
-    // so the label has to carry them.
     expect(html).toContain('aria-label="Hotels / Auth / Auth 2 / Legacy / v3"');
   });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildSearchRecords,
-  collectTopLevelFolders,
+  collectTags,
   collectMethods,
   createSearchIndex,
   formatBreadcrumb,
@@ -13,8 +13,8 @@ import {
 } from './searchIndex';
 import type { NavEntry } from '@/routing/types';
 
-const requestEntry = (over: Partial<NavEntry> & { uuid: string }): NavEntry => {
-  const { uuid, ...rest } = over;
+const requestEntry = (over: Partial<NavEntry> & { uuid: string; tags?: string[] }): NavEntry => {
+  const { uuid, tags, ...rest } = over;
   return {
     slug: 'hotels/get-all',
     type: 'request',
@@ -24,29 +24,28 @@ const requestEntry = (over: Partial<NavEntry> & { uuid: string }): NavEntry => {
     depth: 1,
     item: {
       uuid,
-      info: { name: 'Get All Hotels', type: 'http', description: 'List hotels' },
+      info: { name: 'Get All Hotels', type: 'http', description: 'List hotels', tags },
       http: { method: 'GET', url: '{{baseUrl}}/api/v1/hotels', params: [{ name: 'page', value: '1' }] }
     } as never,
     ...rest
   };
 };
 
-/** A child item of a folder, as the collection schema shapes it. */
 const childItem = (name: string, type: 'http' | 'folder' | 'script', items?: unknown[]) => ({
   uuid: `${type}-${name}`,
   info: { name, type },
   ...(items ? { items } : {})
 });
 
-const folderEntry = (over: Partial<NavEntry> & { uuid: string; items?: unknown[] }): NavEntry => {
-  const { uuid, items, ...rest } = over;
+const folderEntry = (over: Partial<NavEntry> & { uuid: string; items?: unknown[]; tags?: string[] }): NavEntry => {
+  const { uuid, items, tags, ...rest } = over;
   return {
     slug: 'hotels',
     type: 'folder',
     name: 'Hotels',
     ancestors: [],
     depth: 0,
-    item: { uuid, info: { name: 'Hotels', type: 'folder' }, items: items ?? [] } as never,
+    item: { uuid, info: { name: 'Hotels', type: 'folder', tags }, items: items ?? [] } as never,
     ...rest
   };
 };
@@ -74,7 +73,7 @@ describe('buildSearchRecords', () => {
     expect(recs[0]).not.toHaveProperty('description');
   });
 
-  it('carries the ancestor chain as names and slugs', () => {
+  it('carries the ancestor chain as names', () => {
     const entry = requestEntry({
       uuid: 'u1',
       ancestors: [
@@ -83,7 +82,6 @@ describe('buildSearchRecords', () => {
       ]
     });
     expect(requestRecords([entry])[0].ancestorNames).toEqual(['Billing', 'Lookups']);
-    expect(requestRecords([entry])[0].ancestorSlugs).toEqual(['billing', 'billing/lookups']);
   });
 
   it('emits a folder record for a folder at any depth', () => {
@@ -98,7 +96,7 @@ describe('buildSearchRecords', () => {
     const recs = folderRecords([top, nested]);
     expect(recs.map((r) => r.id)).toEqual(['f1', 'f2']);
     expect(recs[1].slug).toBe('hotels/rooms');
-    expect(recs[1].ancestorSlugs).toEqual(['hotels']);
+    expect(recs[1].ancestorNames).toEqual(['Hotels']);
   });
 
   it('gives a folder its own breadcrumb, so same-named folders stay distinguishable', () => {
@@ -148,6 +146,15 @@ describe('buildSearchRecords', () => {
     expect(folderRecords([entry])[0].requestCount).toBe(1);
   });
 
+  it('emits a request record for a graphql entry, with its badge as the method', () => {
+    const entry = requestEntry({ uuid: 'g1', type: 'graphql', name: 'Country Lookup', method: 'GQL', tags: ['catalog'] });
+    const recs = requestRecords([entry]);
+    expect(recs).toHaveLength(1);
+    expect(recs[0].method).toBe('GQL');
+    expect(recs[0].tags).toEqual(['catalog']);
+    expect(collectMethods([entry])).toEqual(['GQL']);
+  });
+
   it('excludes built-in pages from records', () => {
     const overview: NavEntry = {
       slug: '', type: 'overview', name: 'Overview', item: null, ancestors: [], depth: -1
@@ -183,12 +190,10 @@ describe('formatBreadcrumb', () => {
   });
 
   it('counts folders, not separators, so a name holding " / " cannot mis-segment', () => {
-    // Three folders, the middle one carrying a separator inside its own name.
     expect(formatBreadcrumb(['Billing', 'A / B', 'Payments'])).toEqual({
       full: 'Billing / A / B / Payments',
       display: 'Billing / A / B / Payments'
     });
-    // Four folders elide from the ends, however many separators the names hold.
     expect(formatBreadcrumb(['Billing', 'A / B', 'Payments', 'v3'])).toEqual({
       full: 'Billing / A / B / Payments / v3',
       display: 'Billing / … / v3'
@@ -196,13 +201,55 @@ describe('formatBreadcrumb', () => {
   });
 });
 
-describe('collectTopLevelFolders', () => {
-  it('returns only depth-0 folders', () => {
-    const top: NavEntry = { slug: 'hotels', type: 'folder', name: 'Hotels', item: {} as never, ancestors: [], depth: 0 };
-    const nested: NavEntry = { slug: 'hotels/x', type: 'folder', name: 'X', item: {} as never, ancestors: [], depth: 1 };
-    expect(collectTopLevelFolders([top, nested, requestEntry({ uuid: 'u1' })])).toEqual([
-      { slug: 'hotels', name: 'Hotels' }
-    ]);
+describe('tags on search records', () => {
+  it('carries the item tags on request and folder records', () => {
+    const folder = folderEntry({ uuid: 'f1', tags: ['catalog'] });
+    const request = requestEntry({ uuid: 'u1', ancestors: [], tags: ['auth', 'smoke'] });
+    expect(folderRecords([folder])[0].tags).toEqual(['catalog']);
+    expect(requestRecords([request])[0].tags).toEqual(['auth', 'smoke']);
+  });
+
+  it('merges ancestor folder tags, deduped', () => {
+    const folder = folderEntry({ uuid: 'f1', slug: 'hotels', tags: ['catalog', 'smoke'] });
+    const request = requestEntry({ uuid: 'u1', tags: ['smoke'] });
+    expect(requestRecords([folder, request])[0].tags).toEqual(['smoke', 'catalog']);
+  });
+
+  it('inherits through the whole ancestor chain, folders included', () => {
+    const top = folderEntry({ uuid: 'f1', slug: 'billing', name: 'Billing', tags: ['billing'] });
+    const nested = folderEntry({
+      uuid: 'f2',
+      slug: 'billing/lookups',
+      name: 'Lookups',
+      ancestors: [{ name: 'Billing', slug: 'billing' }],
+      depth: 1
+    });
+    const request = requestEntry({
+      uuid: 'u1',
+      ancestors: [
+        { name: 'Billing', slug: 'billing' },
+        { name: 'Lookups', slug: 'billing/lookups' }
+      ]
+    });
+    const records = buildSearchRecords([top, nested, request]);
+    expect(records.find((r) => r.id === 'f2')!.tags).toEqual(['billing']);
+    expect(records.find((r) => r.id === 'u1')!.tags).toEqual(['billing']);
+  });
+
+  it('yields empty tags for untagged items', () => {
+    expect(requestRecords([requestEntry({ uuid: 'u1' })])[0].tags).toEqual([]);
+    expect(folderRecords([folderEntry({ uuid: 'f1' })])[0].tags).toEqual([]);
+  });
+});
+
+describe('collectTags', () => {
+  it('returns distinct tags sorted alphabetically', () => {
+    const records = [rec({ tags: ['smoke', 'auth'] }), folderRec({ tags: ['auth', 'bookings'] })];
+    expect(collectTags(records)).toEqual(['auth', 'bookings', 'smoke']);
+  });
+
+  it('returns an empty list for an untagged collection', () => {
+    expect(collectTags([rec({}), folderRec({})])).toEqual([]);
   });
 });
 
@@ -222,20 +269,18 @@ describe('collectMethods', () => {
 });
 
 const rec = (over: Partial<RequestSearchRecord>): RequestSearchRecord => ({
-  type: 'request', id: 'id', slug: 's', name: '', method: 'GET', ancestorNames: [], ancestorSlugs: [], url: '', ...over
+  type: 'request', id: 'id', slug: 's', name: '', method: 'GET', ancestorNames: [], tags: [], url: '', ...over
 });
 
 const folderRec = (over: Partial<FolderSearchRecord>): FolderSearchRecord => ({
-  type: 'folder', id: 'fid', slug: 'f', name: '', ancestorNames: [], ancestorSlugs: [], requestCount: 0, ...over
+  type: 'folder', id: 'fid', slug: 'f', name: '', ancestorNames: [], tags: [], requestCount: 0, ...over
 });
 
-/** Substrings the reported ranges actually cover, for match-locality assertions. */
 const matchedText = (text: string, ranges?: Array<[number, number]>): string[] =>
   (ranges ?? []).map(([start, end]) => text.slice(start, end + 1));
 
 const ids = (hits: ReturnType<typeof searchHits>): string[] => hits.map((h) => h.record.id);
 
-// A small, representative billing collection reused across the matching tests.
 const BILLING: RequestSearchRecord[] = [
   rec({ id: 'payments', name: 'Get All Payments', ancestorNames: ['Billing'], url: '{{baseUrl}}/billing/payments' }),
   rec({ id: 'invoices', name: 'Get All Invoices', ancestorNames: ['Billing'], url: '{{baseUrl}}/billing/invoices' }),
@@ -294,8 +339,8 @@ describe('searchHits - exact matches per field', () => {
 describe('searchHits - typo tolerance', () => {
   it('tolerates a one-character error', () => {
     const fuse = createSearchIndex(BILLING);
-    expect(ids(searchHits(fuse, 'paymnt'))).toContain('payments'); // dropped letter
-    expect(ids(searchHits(fuse, 'invoises'))).toContain('invoices'); // substitution
+    expect(ids(searchHits(fuse, 'paymnt'))).toContain('payments');
+    expect(ids(searchHits(fuse, 'invoises'))).toContain('invoices');
     expect(ids(searchHits(fuse, 'custmers'))).toContain('customers');
   });
 
@@ -324,9 +369,7 @@ describe('searchHits - match locality (no cross-word stitching)', () => {
     const hit = searchHits(fuse, 'billing').find((h) => h.record.id === 'payments')!;
     const { url } = BILLING.find((r) => r.id === 'payments')!;
     const subs = matchedText(url, hit.matches.url);
-    // The matched span is the word "billing" itself...
     expect(subs).toContain('billing');
-    // ...never the "b" of "{{baseUrl}}" at index 2.
     expect(hit.matches.url?.map(([start]) => start)).not.toContain(2);
   });
 });
@@ -377,7 +420,6 @@ describe('searchHits - reported matches for highlighting', () => {
   it('reports ranges only for the fields that actually matched', () => {
     const fuse = createSearchIndex([rec({ id: 'x', name: 'Get All Payments', url: '{{baseUrl}}/billing/invoices' })]);
     const hit = searchHits(fuse, 'payments')[0];
-    // "payments" is in the name but not in the url.
     expect(hit.matches.name).toBeTruthy();
     expect(hit.matches.url).toBeUndefined();
   });
@@ -410,18 +452,12 @@ describe('searchHits - transposition typos (adjacent letter swap)', () => {
 
   it('swap variants do not introduce unrelated records (near-exact gate)', () => {
     const fuse = createSearchIndex(BILLING);
-    // Scrambling "cursor" must not back-door "currencies" in via a variant.
     expect(ids(searchHits(fuse, 'cursor'))).not.toContain('currencies');
     expect(searchHits(fuse, 'zzzzz')).toEqual([]);
   });
 });
 
 describe('searchHits - abbreviations are intentionally out of scope', () => {
-  // Bitap only matches contiguous approximate spans, never a gapped subsequence
-  // like a consonant-skeleton abbreviation. Supporting those would need a much
-  // looser threshold that reopens the prefix-bleed false positives above, so it
-  // is deliberately left unsupported. These guard that boundary: if the matcher
-  // ever starts accepting abbreviations, precision has almost certainly slipped.
   it('does not match a consonant-skeleton abbreviation', () => {
     const hotels = createSearchIndex([rec({ id: 'h', name: 'Get All Hotels', url: '{{baseUrl}}/api/v1/hotels' })]);
     expect(ids(searchHits(hotels, 'htl'))).not.toContain('h'); // htl -> hotel

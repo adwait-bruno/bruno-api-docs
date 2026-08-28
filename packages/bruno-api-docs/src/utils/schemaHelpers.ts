@@ -85,6 +85,45 @@ export const getItemSeq = (item: OpenCollectionItem | null | undefined): number 
   return undefined;
 };
 
+const normalizeTags = (raw: unknown): string[] => {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  for (const tag of raw) {
+    if (typeof tag !== 'string') continue;
+    const trimmed = tag.trim();
+    if (trimmed) seen.add(trimmed);
+  }
+  return [...seen];
+};
+
+/**
+ * Get the tags of an item (from info block or root for backwards compatibility).
+ * Tags are protocol-agnostic: any request type, and folders, may carry them.
+ */
+export const getItemTags = (item: OpenCollectionItem | null | undefined): string[] => {
+  if (!item) return [];
+  const info = 'info' in item ? (item as { info?: { tags?: string[] } }).info : undefined;
+  if (info && Array.isArray(info.tags)) return normalizeTags(info.tags);
+  if ('tags' in item) return normalizeTags((item as { tags?: string[] }).tags);
+  return [];
+};
+
+/** Get the collection-level tags from the info block. */
+export const getCollectionTags = (collection: OpenCollection | null | undefined): string[] =>
+  normalizeTags((collection as { info?: { tags?: string[] } } | null | undefined)?.info?.tags);
+
+/** Tags carried by ancestor folders that the item does not carry itself. */
+export const getInheritedTags = (ancestry: OpenCollectionItem[], ownTags: string[]): string[] => {
+  const own = new Set(ownTags);
+  const seen = new Set<string>();
+  for (const ancestor of ancestry) {
+    for (const tag of getItemTags(ancestor)) {
+      if (!own.has(tag)) seen.add(tag);
+    }
+  }
+  return [...seen];
+};
+
 /**
  * Check if an item is a folder
  */

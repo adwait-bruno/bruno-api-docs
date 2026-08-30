@@ -60,6 +60,7 @@ export interface VariableResolver {
   showVars: boolean;
   activeEnvName: string | null;
   resolve: (raw: string) => string;
+  interpolate: (raw: string) => string;
   isSecret: (name: string) => boolean;
   secretRefName: (raw: string) => string | null;
   lookup: (name: string) => VariableLookup;
@@ -94,13 +95,15 @@ const makeResolver = (
   activeEnvName: string | null
 ): VariableResolver => {
   const isSecret = (name: string) => model.secretNames.has(name.trim());
+  const interpolate = (raw: string) => resolveVariables(raw, model.values);
   return {
     showVars,
     activeEnvName,
     isSecret,
     isFound: (name: string) => Object.prototype.hasOwnProperty.call(model.entries, name),
     names: Object.keys(model.entries),
-    resolve: (raw: string) => (showVars ? resolveVariables(raw, model.values) : raw),
+    interpolate,
+    resolve: (raw: string) => (showVars ? interpolate(raw) : raw),
     secretRefName: (raw: string) => {
       const name = singleReferenceName(raw);
       return name && isSecret(name) ? name : null;
@@ -164,6 +167,7 @@ const PASSTHROUGH_RESOLVER: VariableResolver = {
   showVars: false,
   activeEnvName: null,
   resolve: (raw) => raw,
+  interpolate: (raw) => raw,
   isSecret: () => false,
   secretRefName: () => null,
   lookup: (name) => ({
@@ -195,6 +199,23 @@ export const useResolvedVariables = (): VariableResolver => useContext(VariableR
 export const VariableResolverProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <VariableResolverContext.Provider value={useVariableResolver()}>{children}</VariableResolverContext.Provider>
 );
+
+export const ShowVarsOverrideProvider: React.FC<{
+  showVars: boolean;
+  children: React.ReactNode;
+}> = ({ showVars, children }) => {
+  const resolver = useResolvedVariables();
+  const value = useMemo(
+    () => ({
+      ...resolver,
+      showVars,
+      resolve: (raw: string) => (showVars ? resolver.interpolate(raw) : raw)
+    }),
+    [resolver, showVars]
+  );
+
+  return <VariableResolverContext.Provider value={value}>{children}</VariableResolverContext.Provider>;
+};
 
 export const ItemVariableResolverProvider: React.FC<{
   collection: OpenCollection | null;
@@ -241,9 +262,19 @@ export const ItemVariableResolverProvider: React.FC<{
     [resolver, dispatch, activeEnvName, item, ancestry]
   );
 
+  const interpolateWithSecrets = useCallback(
+    (raw: string) => resolveVariables(raw, model.fullValues),
+    [model]
+  );
+
   const value = useMemo(
-    () => ({ ...resolver, canWrite: writable, updateVariable }),
-    [resolver, writable, updateVariable]
+    () => ({
+      ...resolver,
+      canWrite: writable,
+      updateVariable,
+      ...(writable ? { interpolate: interpolateWithSecrets } : {})
+    }),
+    [resolver, writable, updateVariable, interpolateWithSecrets]
   );
 
   return <VariableResolverContext.Provider value={value}>{children}</VariableResolverContext.Provider>;

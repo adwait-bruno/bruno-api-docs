@@ -17,6 +17,7 @@ interface CodeSnippetTabsProps {
   body?: HttpRequestBody | HttpRequestBodyVariant[];
   auth?: Auth;
   variant?: 'inline' | 'embedded' | 'icon';
+  interpolation?: 'showVars' | 'switch';
   className?: string;
   testId?: string;
 }
@@ -34,6 +35,7 @@ export const CodeSnippetTabs: React.FC<CodeSnippetTabsProps> = ({
   body,
   auth,
   variant = 'inline',
+  interpolation,
   className,
   testId
 }) => {
@@ -55,7 +57,15 @@ export const CodeSnippetTabs: React.FC<CodeSnippetTabsProps> = ({
     }));
   }, [method, url, snippetHeaders, body, auth]);
 
-  return <SnippetTabs snippets={snippets} variant={variant} className={className} testId={testId} />;
+  return (
+    <SnippetTabs
+      snippets={snippets}
+      variant={variant}
+      interpolation={interpolation}
+      className={className}
+      testId={testId}
+    />
+  );
 };
 
 export default CodeSnippetTabs;

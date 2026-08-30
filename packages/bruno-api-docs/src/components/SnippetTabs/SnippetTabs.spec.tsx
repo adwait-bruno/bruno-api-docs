@@ -85,6 +85,14 @@ describe('SnippetTabs', () => {
     expect(code.text).toContain('{{host}}');
   });
 
+  it('keeps the Interpolate Variables control out of the inline box', () => {
+    const showVars = useRenderToDom(<SnippetTabs snippets={snippets} />);
+    expect(queryByTestId(showVars, 'request-code-snippet-interpolate')).toBeNull();
+
+    const ownSwitch = useRenderToDom(<SnippetTabs snippets={snippets} interpolation="switch" />);
+    expect(queryByTestId(ownSwitch, 'request-code-snippet-interpolate')).toBeNull();
+  });
+
   it('passes the snippet language through to the highlighter', () => {
     const root = useRenderToDom(
       <SnippetTabs snippets={[{ id: 'json', label: 'JSON', language: 'json', code: '{"a":1}' }]} />

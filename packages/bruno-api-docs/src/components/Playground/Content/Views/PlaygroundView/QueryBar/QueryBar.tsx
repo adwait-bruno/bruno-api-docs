@@ -97,6 +97,7 @@ const QueryBar: React.FC<QueryBarProps> = ({
           body={getHttpBody(item)}
           auth={effectiveAuth}
           variant="icon"
+          interpolation="switch"
           testId="query-bar-code-snippet"
         />
         <CopyButton text={url} label="Copy URL" copiedLabel="Copied" testId="query-bar-copy-url" />

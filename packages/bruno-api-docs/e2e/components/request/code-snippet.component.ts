@@ -8,6 +8,7 @@ export class CodeSnippetComponent extends BaseComponent {
   readonly iconTrigger: Locator;
   readonly modal: Locator;
   readonly modalCode: Locator;
+  readonly modalInterpolate: Locator;
 
   constructor(
     page: Page,
@@ -20,6 +21,7 @@ export class CodeSnippetComponent extends BaseComponent {
     this.iconTrigger = this.root.getByTestId(`${base}-trigger`);
     this.modal = page.getByTestId(`${base}-modal`);
     this.modalCode = this.modal.getByTestId(`${base}-code`);
+    this.modalInterpolate = this.modal.getByTestId(`${base}-interpolate-input`);
   }
 
   variableToken(name: string): Locator {

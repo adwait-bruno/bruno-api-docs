@@ -2235,7 +2235,7 @@ items:
   - name: "get users"
     type: "http"
     seq: 1
-    tags: ["users", "smoke"]
+    tags: ["users", "smoke", "extremely-long-tag-name-used-to-verify-the-search-filter-trigger-truncates-instead-of-wrapping"]
     method: "GET"
     url: "{{host}}/api/users?page=1&limit=10"
     headers:

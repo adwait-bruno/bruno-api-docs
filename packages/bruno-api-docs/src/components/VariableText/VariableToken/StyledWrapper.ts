@@ -11,4 +11,9 @@ export const StyledWrapper = styled.span`
   &.var-plain {
     cursor: pointer;
   }
+
+  &.var-empty {
+    font-style: italic;
+    color: var(--text-tertiary);
+  }
 `;

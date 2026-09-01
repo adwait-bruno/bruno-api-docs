@@ -9,7 +9,18 @@ import { useRenderToDom } from '@/hooks/useRenderToDom';
 import { VariableText } from './VariableText';
 
 const collection: any = {
-  config: { environments: [{ name: 'Dev', variables: [{ name: 'baseUrl', value: 'https://dev.test' }] }] }
+  config: {
+    environments: [
+      {
+        name: 'Dev',
+        variables: [
+          { name: 'baseUrl', value: 'https://dev.test' },
+          { name: 'emptyValue', value: '' },
+          { name: 'authToken', secret: true }
+        ]
+      }
+    ]
+  }
 };
 
 const tree = (value: string, configure?: (store: ReturnType<typeof createOpenCollectionStore>) => void) => {
@@ -58,10 +69,24 @@ describe('VariableText', () => {
     expect(root.querySelector('.var-text')?.text).toBe('https://dev.test/api/v1/auth');
   });
 
-  it('still highlights an unknown variable when show-variables is on', () => {
+  it('shows the (empty) placeholder for a defined variable that has no value', () => {
+    const root = useRenderToDom(tree('{{emptyValue}}', withShowVars));
+    const token = root.querySelector('.var');
+    expect(token?.getAttribute('data-var-name')).toBe('emptyValue');
+    expect(token?.text).toBe('(empty)');
+    expect(token?.getAttribute('class')).toContain('var-empty');
+  });
+
+  it('shows the (empty) placeholder for a variable that is not defined at all', () => {
     const root = useRenderToDom(tree('{{unknown}}/x', withShowVars));
     const token = root.querySelector('.var');
     expect(token?.getAttribute('data-var-name')).toBe('unknown');
-    expect(token?.text).toBe('{{unknown}}');
+    expect(token?.text).toBe('(empty)');
+  });
+  it('leaves a secret and a dynamic reference untouched when show-variables is on', () => {
+    expect(useRenderToDom(tree('{{authToken}}', withShowVars)).querySelector('.var')?.text)
+      .toBe('{{authToken}}');
+    expect(useRenderToDom(tree('{{$randomInt}}', withShowVars)).querySelector('.var')?.text)
+      .toBe('{{$randomInt}}');
   });
 });

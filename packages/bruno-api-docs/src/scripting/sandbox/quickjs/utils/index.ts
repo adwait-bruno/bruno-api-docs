@@ -21,6 +21,9 @@ const marshallToVm = (value: any, vm: any) => {
     } else {
       const obj = vm.newObject();
       for (const key in value) {
+        if (key === '__proto__') {
+          continue;
+        }
         vm.setProp(obj, key, marshallToVm(value[key], vm));
       }
       return obj;
@@ -28,6 +31,7 @@ const marshallToVm = (value: any, vm: any) => {
   } else if (typeof value === 'function') {
     return vm.newString('[Function (anonymous)]');
   }
+  throw new TypeError(`marshallToVm: unsupported value of type ${typeof value}`);
 };
 
 export { marshallToVm };

@@ -82,7 +82,9 @@ request:
          bru.setVar('collection-var-set-by-collection-script', 'collection-var-value-set-by-collection-script');
         }
     - type: after-response
-      code: wefewfewfewfewfwefwefewfewfewfewfewfewfewfewf
+      code: |-
+        // Collection · post-response (L0)
+        console.log('POST > L0 collection');
     - type: tests
       code: |-
         // used by \`scripting/js/folder-collection script-tests\`

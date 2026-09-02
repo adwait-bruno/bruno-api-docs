@@ -3,7 +3,6 @@ import type { HttpRequest, HttpRequestHeader } from '@opencollection/types/reque
 import type { OpenCollection as OpenCollectionCollection } from '@opencollection/types';
 import type { Item } from '@opencollection/types/collection/item';
 import type { Auth } from '@opencollection/types/common/auth';
-import { requestRunner } from '@/runner';
 import { getAncestorsByUuid } from '@/utils/fileUtils';
 import { ItemVariableResolverProvider } from '@/hooks';
 import TitleLabel from '@/components/TitleLabel/TitleLabel';
@@ -41,7 +40,6 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
   // The request/response split is one draggable divider whose axis follows the
   // orientation: horizontal layout resizes width, vertical layout resizes height.
   const { size: paneSize, isResizing, containerRef, startResize } = useSplitPane(orientation);
-  const runner = useMemo(() => requestRunner, []);
   const ancestry = useMemo(
     () => (collection && itemUuid ? getAncestorsByUuid(collection, itemUuid) : []),
     [collection, itemUuid]
@@ -114,7 +112,8 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
       const environment = envs.find(
         (env: any) => env.name === selectedEnvironment
       );
-      const result = await runner.runRequest({
+      const { requestRunner } = await import('@/runner');
+      const result = await requestRunner.runRequest({
         item: editableItem,
         collection,
         environment,
@@ -139,7 +138,7 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
     } finally {
       setIsLoading(false);
     }
-  }, [collection, editableItem, runner, selectedEnvironment, itemUuid]);
+  }, [collection, editableItem, selectedEnvironment, itemUuid, dispatch]);
 
   return (
     <ItemVariableResolverProvider

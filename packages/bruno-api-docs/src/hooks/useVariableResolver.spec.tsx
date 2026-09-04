@@ -180,4 +180,22 @@ describe('nested variable resolution', () => {
     expect(html).toContain('<span data-testid="nested-resolve">https://api.test/v1</span>');
     expect(html).toContain('<span data-testid="nested-interpolate">https://api.test/v1</span>');
   });
+
+  it('gates resolve on showVars but never interpolate', () => {
+    const store = createOpenCollectionStore();
+    store.dispatch(setDocsCollection(nested));
+    store.dispatch(setActiveEnv('Dev'));
+    store.dispatch(setShowVars(false));
+
+    const html = renderToStaticMarkup(
+      <Provider store={store}>
+        <ItemVariableResolverProvider collection={nested} ancestry={[]} item={null} writable>
+          <NestedProbe />
+        </ItemVariableResolverProvider>
+      </Provider>
+    );
+
+    expect(html).toContain('<span data-testid="nested-resolve">{{endpoint}}</span>');
+    expect(html).toContain('<span data-testid="nested-interpolate">https://api.test/v1</span>');
+  });
 });

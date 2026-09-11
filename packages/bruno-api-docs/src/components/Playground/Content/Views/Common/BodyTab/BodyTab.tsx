@@ -6,6 +6,7 @@ import { VariableInfoCard } from '@/components/VariableInfoCard/VariableInfoCard
 import { getDescription } from '@/utils/request';
 import { keyValueRowToEntry } from '@/utils/keyValueRow';
 import type { RequestBody } from '@/utils/schemaHelpers';
+import { StyledWrapper } from './StyledWrapper';
 
 interface BodyTabProps {
   body: RequestBody;
@@ -48,9 +49,9 @@ export const BodyTab: React.FC<BodyTabProps> = ({
   };
 
   return (
-    <div className={`space-y-3${fillHeight ? ' h-full flex flex-col' : ''}`}>
+    <StyledWrapper className={`space-y-3${fillHeight ? ' h-full flex flex-col' : ''}`}>
       {!body ? (
-        <div data-testid="body-empty" className="text-center py-6 border-2 border-dashed rounded" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+        <div data-testid="body-empty" className="body-empty">
           No body content. Select a body type to add content.
         </div>
       ) : 'data' in body && typeof body.data === 'string' ? (
@@ -174,7 +175,7 @@ export const BodyTab: React.FC<BodyTabProps> = ({
           Unsupported body type
         </div>
       )}
-    </div>
+    </StyledWrapper>
   );
 };
 

@@ -332,7 +332,6 @@ export const GrpcRequest: React.FC<GrpcRequestProps> = ({
               testScripts={testScripts}
               flow={scriptFlow}
               requestLabel="GRPC"
-              url={url}
               onNavigate={onBreadcrumbClick}
             />
           ) : (

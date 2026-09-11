@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Item as OpenCollectionItem } from '@opencollection/types/collection/item';
 import {
+  countEnabled,
   getItemDescription,
   getRequestBadgeLabel,
   getRequestAuth,
@@ -358,5 +359,36 @@ describe('getCollectionTags', () => {
   it('returns an empty array when absent', () => {
     expect(getCollectionTags(null)).toEqual([]);
     expect(getCollectionTags(collection({ info: { name: 'Hotel Booking' } }))).toEqual([]);
+  });
+});
+
+describe('countEnabled', () => {
+  it('counts only the rows the user has ticked', () => {
+    expect(countEnabled([{ disabled: false }, { disabled: true }])).toBe(1);
+  });
+
+  it('treats a row with no on or off setting as ticked', () => {
+    expect(countEnabled([{}, { disabled: true }, {}])).toBe(2);
+  });
+
+  it('shows no number on the tab when every row is unticked', () => {
+    expect(countEnabled([{ disabled: true }, { disabled: true }])).toBeUndefined();
+  });
+
+  it('shows no number on the tab when there are no rows', () => {
+    expect(countEnabled([])).toBeUndefined();
+  });
+
+  it('shows no number on the tab when there are no rows at all', () => {
+    expect(countEnabled(undefined)).toBeUndefined();
+  });
+
+  it('also counts editable rows, which say enabled rather than disabled', () => {
+    expect(countEnabled([{ enabled: true }, { enabled: false }, { enabled: true }])).toBe(2);
+    expect(countEnabled([{ enabled: false }])).toBeUndefined();
+  });
+
+  it('reads either row shape, so both kinds can be counted by the one helper', () => {
+    expect(countEnabled([{ enabled: true }, { disabled: false }, { enabled: false }, { disabled: true }])).toBe(2);
   });
 });

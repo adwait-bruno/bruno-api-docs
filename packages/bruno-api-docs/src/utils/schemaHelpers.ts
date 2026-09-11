@@ -621,8 +621,9 @@ export const getTestsScript = (scripts: Scripts | Record<string, string> | null 
   return (scripts as any).tests;
 };
 
-export const countEnabled = <T extends { disabled?: boolean }>(items: T[] | undefined): number | undefined =>
-  (items ?? []).filter((item) => !item.disabled).length || undefined;
+export const countEnabled = (
+  items: ReadonlyArray<{ enabled?: boolean; disabled?: boolean }> | undefined
+): number | undefined => (items ?? []).filter((item) => item.enabled ?? !item.disabled).length || undefined;
 
 /**
  * Get docs from an item (at root level in new schema)

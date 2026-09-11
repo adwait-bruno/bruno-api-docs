@@ -9,7 +9,7 @@ export class ConfigurationSection extends BaseComponent {
 
   readonly secret = new SecretValueComponent(
     this.page,
-    'collection-config-auth-secret'
+    'collection-config-auth-token-secret'
   );
 
   readonly disabledRows = this.root

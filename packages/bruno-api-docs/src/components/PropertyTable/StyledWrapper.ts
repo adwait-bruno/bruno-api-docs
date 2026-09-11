@@ -2,6 +2,7 @@ import styled from '@emotion/styled';
 
 export const StyledWrapper = styled.div`
   overflow-x: auto;
+  overflow-y: hidden;
   container-type: inline-size;
   container-name: proptable;
   scrollbar-width: thin;
@@ -42,7 +43,7 @@ export const StyledWrapper = styled.div`
 
   .property-row {
     display: grid;
-    grid-template-columns: minmax(8.75rem, max-content) minmax(0, 1fr);
+    grid-template-columns: minmax(8.75rem, 15rem) minmax(0, 1fr);
     align-items: center;
     column-gap: 1.5rem;
     row-gap: 0;
@@ -132,6 +133,10 @@ export const StyledWrapper = styled.div`
   .property-value-main .oc-truncate {
     overflow: visible;
     text-overflow: clip;
+  }
+  .property-value-placeholder {
+    font-style: italic;
+    color: var(--text-tertiary);
   }
   .property-type {
     flex-shrink: 0;

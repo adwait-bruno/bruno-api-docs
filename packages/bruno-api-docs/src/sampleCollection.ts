@@ -617,7 +617,7 @@ items:
 
       ### Rollout checklist
 
-      - [x] Invoice export shipped
+      - [x] ~~Invoice export shipped~~
       - [ ] Dunning emails
       - Not a task item
       - [ ] Parent task

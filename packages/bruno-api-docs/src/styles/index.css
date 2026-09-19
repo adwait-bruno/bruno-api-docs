@@ -903,6 +903,7 @@ tr.themed-row:nth-child(even) {
   font-style: italic !important;
 }
 
+.markdown-documentation s,
 .markdown-documentation del {
   text-decoration: line-through !important;
   color: var(--text-secondary) !important;

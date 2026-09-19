@@ -48,6 +48,12 @@ test.describe('Rendered markdown documentation', () => {
       await expect(checkboxes.nth(0)).toBeDisabled();
     });
 
+    await test.step('a completed item struck through in Bruno renders struck through here', async () => {
+      const struck = docs.locator('li.task-list-item s').first();
+      await expect(struck).toHaveText('Invoice export shipped');
+      await expect(struck).toHaveCSS('text-decoration-line', 'line-through');
+    });
+
     await test.step('a plain list item in the same list keeps its bullet', async () => {
       const plain = docs.locator('li', { hasText: 'Not a task item' }).first();
       await expect(plain).toHaveCSS('list-style-type', 'disc');

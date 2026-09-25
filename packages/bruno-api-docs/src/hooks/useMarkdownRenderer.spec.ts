@@ -39,8 +39,10 @@ describe('createMarkdownRenderer', () => {
       expect(render('line one\\\nline two')).toContain('<br>');
     });
 
-    it('treats a soft newline as a line break', () => {
-      expect(render('line one\nline two')).toContain('<br>');
+    it('joins a soft newline into one line, the way the app does', () => {
+      const html = render('line one\nline two');
+      expect(html).not.toContain('<br>');
+      expect(html).toContain('line one\nline two');
     });
   });
 
@@ -79,6 +81,40 @@ describe('createMarkdownRenderer', () => {
       expect(render(['```md', '- [X] example', '```'].join('\n'))).not.toContain('type="checkbox"');
     });
 
+    it('leaves task-list syntax inside an indented code block untouched', () => {
+      const text = renderText('para\n\n    - [X] code sample\n    - [] empty');
+      expect(text).toContain('- [X] code sample');
+      expect(text).toContain('- [] empty');
+      expect(render('para\n\n    - [X] code sample')).not.toContain('type="checkbox"');
+    });
+
+    it('is not confused by an inline triple-backtick span earlier in the document', () => {
+      const html = render('a ```inline``` b\n\n- [ ] after');
+      expect(html).toContain('type="checkbox"');
+      expect(html).not.toContain('[ ] after');
+    });
+
+    it('accepts the same loose markers the app does', () => {
+      for (const src of ['- [xx] thing', '- [  ] thing', '- [ x] thing']) {
+        expect(render(src)).toContain('type="checkbox"');
+      }
+
+      expect(render('- [ x] thing')).toContain('checked');
+      expect(render('- [xx] thing')).not.toContain('checked');
+      expect(render('- [  ] thing')).not.toContain('checked');
+    });
+
+    it('accepts a marker with no space after it, as the app does', () => {
+      expect(render('- [x]done')).toContain('checked');
+      expect(render('- [ ]todo')).toContain('type="checkbox"');
+      expect(render('- [ ]todo')).not.toContain('checked');
+    });
+
+    it('needs content after the marker, as the app does', () => {
+      expect(render('- [x]')).not.toContain('type="checkbox"');
+      expect(render('- [ ]')).not.toContain('type="checkbox"');
+    });
+
     it('leaves a tilde-fenced block untouched too', () => {
       expect(renderText(['~~~', '- [X] example', '~~~'].join('\n'))).toContain('- [X] example');
     });
@@ -93,6 +129,19 @@ describe('createMarkdownRenderer', () => {
       expect(html).toContain('<a href="https://example.com">x</a>');
     });
 
+    it('wraps item content in an element that is valid inside a loose list paragraph', () => {
+      const html = render('- [ ] one\n\n- [x] two');
+      expect(html).toContain('<p><input');
+      expect(html).toContain('<span class="task-list-item-content">');
+      expect(html).not.toContain('<div');
+    });
+
+    it('leaves the item alone when the marker parsed as a reference link', () => {
+      const html = render('- [ x] done\n\n[x]: https://example.com');
+      expect(html).not.toContain('type="checkbox"');
+      expect(html).toContain('<a href="https://example.com">');
+    });
+
     it('leaves a plain list item alone', () => {
       const html = render('- plain');
       expect(html).not.toContain('type="checkbox"');
@@ -105,6 +154,17 @@ describe('createMarkdownRenderer', () => {
       const html = render('```js\nconst a = 1;\n```');
       expect(html).toContain('hljs-keyword');
       expect(html).toContain('language-js');
+    });
+
+    it('leaves a text fence uncoloured, since text means do not highlight', () => {
+      for (const lang of ['text', 'plaintext', 'txt']) {
+        expect(render(`\`\`\`${lang}\nThis is prose. It costs 25.\n\`\`\``)).not.toContain('hljs-');
+      }
+    });
+
+    it('highlights the languages an API docs renderer needs', () => {
+      expect(render('```http\nGET /v1/orders HTTP/1.1\n```')).toContain('hljs-');
+      expect(render('```graphql\nquery { user(id: 1) { name } }\n```')).toContain('hljs-');
     });
 
     it('renders an unlabelled fence without throwing', () => {

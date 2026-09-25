@@ -620,10 +620,17 @@ items:
       - [x] ~~Invoice export shipped~~
       - [ ] Dunning emails
       - Not a task item
+      - [ ] Review the **billing** guide and \`rate-limits\` doc
       - [ ] Parent task
         - [x] Nested done
 
       #### Notes
+
+      - [ ] Multi-block item
+
+        A second paragraph inside the same task item.
+
+      #### Line breaks
 
       Line one<br/>line two
 

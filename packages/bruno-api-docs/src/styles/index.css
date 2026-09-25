@@ -786,10 +786,6 @@ tr.themed-row:nth-child(even) {
   font-family: var(--font-mono) !important;
 }
 
-[data-theme="dark"] .markdown-documentation pre {
-  background-color: transparent !important;
-}
-
 .markdown-documentation .md-code-copy {
   position: absolute;
   top: 0.5rem;
@@ -919,15 +915,27 @@ tr.themed-row:nth-child(even) {
   margin-bottom: 0.2em !important;
 }
 
+.markdown-documentation li.task-list-item > * {
+  flex: 0 0 100% !important;
+}
+
+.markdown-documentation li.task-list-item > .task-list-item-checkbox {
+  flex: 0 0 auto !important;
+}
+
+.markdown-documentation li.task-list-item > .task-list-item-content {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
 .markdown-documentation li.task-list-item > ul,
 .markdown-documentation li.task-list-item > ol {
-  flex: 0 0 100% !important;
   margin: 0.2em 0 0 !important;
 }
 
 .markdown-documentation .task-list-item-checkbox {
-  width: 14px;
-  height: 14px;
+  width: 0.875rem;
+  height: 0.875rem;
   margin: 0.2em 0 0;
   flex-shrink: 0;
   vertical-align: top;

@@ -5,7 +5,7 @@ import hljs from '@/utils/highlight';
 
 let cachedRenderer: MarkdownIt | null = null;
 
-const HTML_LINE_BREAK = /^<br\s*\/?>/i;
+const HTML_LINE_BREAK = /<br\s*\/?>/iy;
 const LESS_THAN = 0x3C;
 
 type InlineRule = Parameters<MarkdownIt['inline']['ruler']['before']>[2];
@@ -13,7 +13,8 @@ type InlineRule = Parameters<MarkdownIt['inline']['ruler']['before']>[2];
 const hardBreakFromHtmlTag: InlineRule = (state, silent) => {
   if (state.src.charCodeAt(state.pos) !== LESS_THAN) return false;
 
-  const match = HTML_LINE_BREAK.exec(state.src.slice(state.pos));
+  HTML_LINE_BREAK.lastIndex = state.pos;
+  const match = HTML_LINE_BREAK.exec(state.src);
   if (!match) return false;
 
   if (!silent) state.push('hardbreak', 'br', 0);
@@ -22,37 +23,58 @@ const hardBreakFromHtmlTag: InlineRule = (state, silent) => {
   return true;
 };
 
-const TASK_LIST_LINE_PATTERN = /^(\s*[-*+]\s+)\[([ xX]?)\](\s.*)?$/;
-const CODE_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})/;
+const TASK_MARKER_PATTERN = /^\[([\sxX]*?)\](?:\s|(?=[^\s(]))/;
 
-const normalizeTaskListMarkdown = (content: string): string => {
-  if (!content) return content;
+type CoreRule = Parameters<MarkdownIt['core']['ruler']['before']>[2];
 
-  let openFence = '';
+const normalizeTaskMarkers: CoreRule = (state) => {
+  const { tokens } = state;
 
-  return content
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map((line) => {
-      const fence = CODE_FENCE_PATTERN.exec(line);
-      if (fence) {
-        const marker = fence[1];
-        if (!openFence) openFence = marker;
-        else if (marker[0] === openFence[0] && marker.length >= openFence.length) openFence = '';
-        return line;
-      }
+  for (let i = 2; i < tokens.length; i += 1) {
+    const token = tokens[i];
 
-      if (openFence) return line;
+    if (token.type !== 'inline') continue;
+    if (tokens[i - 1].type !== 'paragraph_open') continue;
+    if (tokens[i - 2].type !== 'list_item_open') continue;
 
-      const match = line.match(TASK_LIST_LINE_PATTERN);
-      if (!match) return line;
+    const match = TASK_MARKER_PATTERN.exec(token.content);
+    if (!match) continue;
 
-      const [, prefix, marker, rest] = match;
-      const markerChar = marker.trim().toLowerCase() === 'x' ? 'x' : ' ';
+    const first = token.children?.[0];
+    if (first?.type !== 'text') continue;
 
-      return `${prefix}[${markerChar}]${rest ?? ' '}`;
-    })
-    .join('\n');
+    const marker = match[1].trim().toLowerCase() === 'x' ? 'x' : ' ';
+    const replacement = `[${marker}] `;
+
+    token.content = replacement + token.content.slice(match[0].length);
+    first.content = replacement + first.content.slice(match[0].length);
+  }
+
+  return true;
+};
+
+const TASK_CONTENT_CLASS = 'task-list-item-content';
+
+const wrapTaskItemContent: CoreRule = (state) => {
+  for (const token of state.tokens) {
+    if (token.type !== 'inline') continue;
+
+    const children = token.children;
+    const checkbox = children?.[0];
+    if (!children || checkbox?.type !== 'html_inline') continue;
+    if (!checkbox.content.includes('task-list-item-checkbox')) continue;
+
+    const open = new state.Token('html_inline', '', 0);
+    open.content = `<span class="${TASK_CONTENT_CLASS}">`;
+
+    const close = new state.Token('html_inline', '', 0);
+    close.content = '</span>';
+
+    children.splice(1, 0, open);
+    children.push(close);
+  }
+
+  return true;
 };
 
 const highlightFence = (str: string, lang: string): string => {
@@ -81,15 +103,15 @@ export const createMarkdownRenderer = (): MarkdownIt => {
     // Off: smart-typography rewrites punctuation in technical docs — e.g. (c)->©,
     // --->en-dash, ...->ellipsis, straight->curly quotes — which corrupts API copy.
     typographer: false,
-    breaks: true,
+    breaks: false,
     highlight: highlightFence
   });
 
   markdownIt.inline.ruler.before('text', 'html_line_break', hardBreakFromHtmlTag);
   markdownIt.use(taskLists, { enabled: false, label: false, labelAfter: false });
 
-  const render = markdownIt.render.bind(markdownIt);
-  markdownIt.render = (src, env) => render(normalizeTaskListMarkdown(src), env);
+  markdownIt.core.ruler.before('github-task-lists', 'normalize_task_markers', normalizeTaskMarkers);
+  markdownIt.core.ruler.after('github-task-lists', 'wrap_task_item_content', wrapTaskItemContent);
 
   const defaultRender
     = markdownIt.renderer.rules.heading_open

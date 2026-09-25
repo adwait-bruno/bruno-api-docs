@@ -35,7 +35,7 @@ test.describe('Rendered markdown documentation', () => {
     const docs = folderPage.folderMarkdownDocs;
     const checkboxes = docs.locator('input[type="checkbox"]');
 
-    await expect(checkboxes).toHaveCount(4);
+    await expect(checkboxes).toHaveCount(6);
     await expect(docs).not.toContainText('[x]');
     await expect(docs).not.toContainText('[ ]');
 
@@ -57,6 +57,31 @@ test.describe('Rendered markdown documentation', () => {
     await test.step('a plain list item in the same list keeps its bullet', async () => {
       const plain = docs.locator('li', { hasText: 'Not a task item' }).first();
       await expect(plain).toHaveCSS('list-style-type', 'disc');
+    });
+
+    await test.step('inline markup inside an item keeps normal word spacing', async () => {
+      const item = docs.locator('li.task-list-item', { hasText: 'Review the' }).first();
+      await expect(item.locator('> .task-list-item-content')).toHaveCount(1);
+
+      const gap = await item.evaluate((el) => {
+        const strong = el.querySelector('strong');
+        if (!strong?.previousSibling) return -1;
+        const range = document.createRange();
+        range.selectNodeContents(strong.previousSibling);
+        return Math.round(strong.getBoundingClientRect().left - range.getBoundingClientRect().right);
+      });
+
+      expect(gap).toBe(0);
+    });
+
+    await test.step('a second block inside an item stacks below it, not beside it', async () => {
+      const item = docs.locator('li.task-list-item', { hasText: 'Multi-block item' }).first();
+      const paras = item.locator('> p');
+      await expect(paras).toHaveCount(2);
+
+      const [first, second] = [await paras.nth(0).boundingBox(), await paras.nth(1).boundingBox()];
+      if (!first || !second) throw new Error('expected both blocks to be laid out');
+      expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
     });
 
     await test.step('a nested task list sits below its parent, not beside it', async () => {

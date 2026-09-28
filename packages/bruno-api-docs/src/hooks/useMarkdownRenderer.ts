@@ -9,7 +9,8 @@ const HTML_LINE_BREAK = /<br\s*\/?>/iy;
 const LESS_THAN = 0x3C;
 
 type InlineRule = Parameters<MarkdownIt['inline']['ruler']['before']>[2];
-
+// This rule is used to add support for hard line breaks in markdown.
+// (state) is the current state of the parser,token is the current word being parsed
 const hardBreakFromHtmlTag: InlineRule = (state, silent) => {
   if (state.src.charCodeAt(state.pos) !== LESS_THAN) return false;
 
@@ -26,7 +27,10 @@ const hardBreakFromHtmlTag: InlineRule = (state, silent) => {
 const TASK_MARKER_PATTERN = /^\[([\sxX]*?)\](?:\s|(?=[^\s(]))/;
 
 type CoreRule = Parameters<MarkdownIt['core']['ruler']['before']>[2];
-
+// This rule is used to normalize task lists ,it iterates line by line through the tokens and looks for list items
+// it remembers code blocks and skips them,so that checkboxes inside code blocks are not affected by this rule.
+// it checks the current token and the previous two tokens to see if they match the pattern of a task list item.
+// if they do, it replaces the marker with a normalized version and updates the content of the token accordingly.
 const normalizeTaskMarkers: CoreRule = (state) => {
   const { tokens } = state;
 

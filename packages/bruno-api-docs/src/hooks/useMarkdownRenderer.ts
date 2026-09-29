@@ -68,6 +68,8 @@ const wrapTaskItemContent: CoreRule = (state) => {
     if (!children || checkbox?.type !== 'html_inline') continue;
     if (!checkbox.content.includes('task-list-item-checkbox')) continue;
 
+    checkbox.content = checkbox.content.replace('<input ', '<input tabindex="-1" aria-disabled="true" ');
+
     const open = new state.Token('html_inline', '', 0);
     open.content = `<span class="${TASK_CONTENT_CLASS}">`;
 
@@ -112,7 +114,7 @@ export const createMarkdownRenderer = (): MarkdownIt => {
   });
 
   markdownIt.inline.ruler.before('text', 'html_line_break', hardBreakFromHtmlTag);
-  markdownIt.use(taskLists, { enabled: false, label: false, labelAfter: false });
+  markdownIt.use(taskLists, { enabled: true, label: false, labelAfter: false });
 
   markdownIt.core.ruler.before('github-task-lists', 'normalize_task_markers', normalizeTaskMarkers);
   markdownIt.core.ruler.after('github-task-lists', 'wrap_task_item_content', wrapTaskItemContent);

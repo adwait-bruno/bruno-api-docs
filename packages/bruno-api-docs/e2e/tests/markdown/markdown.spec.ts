@@ -46,6 +46,19 @@ test.describe('Rendered markdown documentation', () => {
 
     await test.step('the boxes are read-only in published docs', async () => {
       await expect(checkboxes.nth(0)).toBeDisabled();
+      await checkboxes.nth(0).click({ force: true });
+      await expect(checkboxes.nth(0)).toBeChecked();
+    });
+
+    await test.step('the boxes keep the accent colour instead of the greyed-out disabled look', async () => {
+      await expect(checkboxes.nth(0)).not.toHaveAttribute('disabled');
+    });
+
+    await test.step('a task list sits flush with the text around it, like the app', async () => {
+      const heading = docs.locator('h3', { hasText: 'Rollout checklist' });
+      const [headingBox, checkboxBox] = [await heading.boundingBox(), await checkboxes.nth(0).boundingBox()];
+      if (!headingBox || !checkboxBox) throw new Error('expected the heading and checkbox to be laid out');
+      expect(Math.abs(checkboxBox.x - headingBox.x)).toBeLessThanOrEqual(1);
     });
 
     await test.step('a completed item struck through in Bruno renders struck through here', async () => {
@@ -94,6 +107,23 @@ test.describe('Rendered markdown documentation', () => {
       expect(nestedBox.y).toBeGreaterThan(parentBox.y);
       expect(nestedBox.x).toBeGreaterThan(parentBox.x);
     });
+  });
+
+  test('wraps long table cell text onto multiple lines instead of scrolling sideways', async ({ folderPage }) => {
+    const docs = folderPage.folderMarkdownDocs;
+    const table = docs.locator('table', { hasText: 'idempotencyKey' });
+    await expect(table).toBeVisible();
+
+    const scroll = table.locator('xpath=..');
+    const overflow = await scroll.evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+
+    const [longCell, shortCell] = [
+      await table.locator('td', { hasText: 'inv_' }).boundingBox(),
+      await table.locator('td', { hasText: 'usd' }).boundingBox()
+    ];
+    if (!longCell || !shortCell) throw new Error('expected both cells to be laid out');
+    expect(longCell.height).toBeGreaterThan(shortCell.height);
   });
 
   test('renders code blocks on the docs code surface with syntax highlighting', async ({ folderPage }) => {

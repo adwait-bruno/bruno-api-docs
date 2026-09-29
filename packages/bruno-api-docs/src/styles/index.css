@@ -809,7 +809,7 @@ tr.themed-row:nth-child(even) {
 .markdown-documentation ul,
 .markdown-documentation ol {
   margin: 0.5em 0 0.75em !important;
-  padding-left: 1.5em !important;
+  padding-left: 1.25rem !important;
   list-style-position: outside !important;
 }
 
@@ -867,6 +867,7 @@ tr.themed-row:nth-child(even) {
 
 .markdown-documentation table {
   width: 100% !important;
+  table-layout: fixed !important;
   border-collapse: collapse !important;
   margin: 0 !important;
   font-size: 0.875em !important;
@@ -877,6 +878,7 @@ tr.themed-row:nth-child(even) {
   padding: 0.5em 0.75em !important;
   border-bottom: 1px solid var(--oc-table-border) !important;
   text-align: left !important;
+  overflow-wrap: anywhere !important;
 }
 
 .markdown-documentation tr:last-child td,
@@ -905,6 +907,15 @@ tr.themed-row:nth-child(even) {
   color: var(--text-secondary) !important;
 }
 
+.markdown-documentation ul.contains-task-list,
+.markdown-documentation ol.contains-task-list {
+  padding-left: 0 !important;
+}
+
+.markdown-documentation .contains-task-list > li:not(.task-list-item) {
+  margin-left: 1.25rem !important;
+}
+
 .markdown-documentation li.task-list-item {
   display: flex !important;
   flex-wrap: wrap !important;
@@ -931,6 +942,7 @@ tr.themed-row:nth-child(even) {
 .markdown-documentation li.task-list-item > ul,
 .markdown-documentation li.task-list-item > ol {
   margin: 0.2em 0 0 !important;
+  padding-left: calc(0.875rem + 0.5rem) !important;
 }
 
 .markdown-documentation .task-list-item-checkbox {
@@ -939,7 +951,7 @@ tr.themed-row:nth-child(even) {
   margin: 0.2em 0 0;
   flex-shrink: 0;
   vertical-align: top;
-  cursor: default;
+  pointer-events: none;
   background-color: transparent;
   accent-color: var(--oc-primary-solid);
   color-scheme: light;

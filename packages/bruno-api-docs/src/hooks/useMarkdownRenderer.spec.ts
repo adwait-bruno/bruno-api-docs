@@ -71,7 +71,13 @@ describe('createMarkdownRenderer', () => {
     });
 
     it('renders checkboxes read-only, since published docs cannot persist a change', () => {
-      expect(render('- [ ] todo')).toContain('disabled');
+      const html = render('- [ ] todo');
+      expect(html).toContain('aria-disabled="true"');
+      expect(html).toContain('tabindex="-1"');
+    });
+
+    it('does not use the disabled attribute, which greys the box out unlike the app', () => {
+      expect(render('- [x] done')).not.toContain('disabled=""');
     });
 
     it('leaves task-list syntax inside a fenced code block untouched', () => {

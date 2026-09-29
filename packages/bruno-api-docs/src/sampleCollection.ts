@@ -642,6 +642,13 @@ items:
 
       Line one<br/>line two
 
+      #### Invoice fields
+
+      | Field | Example |
+      | --- | --- |
+      | idempotencyKey | inv_7f3a9c2e1b4d8f6a0c5e9b2d7f1a3c8e6b0d4f9a2c7e5b1d8f3a6c0e9b4d2f7a1c |
+      | currency | usd |
+
       \`\`\`js
       const invoice = await bru.get('/invoices/42');
       const receipt = await bru.get('/invoices/42/receipt?include=lineItems,taxes,discounts,refunds,adjustments,credits&expand=customer,subscription,paymentMethod&currency=usd&locale=en-GB&format=pdf');

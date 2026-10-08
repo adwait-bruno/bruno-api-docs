@@ -3,7 +3,6 @@ import reducer, {
   setPlaygroundCollection,
   updateCollectionEnvironments,
   updatePlaygroundItem,
-  resetPlaygroundEnvironments,
   selectHydratedCollection,
   selectPlaygroundCollection,
   setViewMode,
@@ -36,31 +35,30 @@ const envExternalSecrets = (store: ReturnType<typeof createOpenCollectionStore>)
   (selectHydratedCollection(store.getState())!.config!.environments![0].externalSecrets!
     .variables as unknown) as { name: string; value?: string; secretName?: string }[];
 
-describe('resetPlaygroundEnvironments', () => {
-  it('restores the original environments after an edit', () => {
+describe('playground edits', () => {
+  it('keeps environment edits in the store (nothing resets them on its own)', () => {
     const store = createOpenCollectionStore();
     store.dispatch(setPlaygroundCollection(makeCollection()));
 
+    store.dispatch(setPlaygroundVariable({ scope: 'environment', envName: 'Dev', name: 'a', value: 'edited' }));
     const edited = makeCollection();
-    edited.config.environments[0].variables = [{ name: 'a', value: '1' }];
+    edited.config.environments[0].variables = [{ name: 'a', value: 'edited' }];
     store.dispatch(updateCollectionEnvironments(edited));
-    expect(envVariables(store)).toHaveLength(1);
 
-    store.dispatch(resetPlaygroundEnvironments());
-    expect(envVariables(store).map((v: any) => v.name)).toEqual(['a', 'b']);
+    expect(envVariables(store)).toEqual([{ name: 'a', value: 'edited' }]);
   });
 
-  it('keeps the restore independent of later edits (cloned, not shared)', () => {
+  it('leaves the source collection untouched, so a reload starts from the original values', () => {
+    const source = makeCollection();
     const store = createOpenCollectionStore();
-    store.dispatch(setPlaygroundCollection(makeCollection()));
+    store.dispatch(setPlaygroundCollection(source));
+    store.dispatch(setPlaygroundVariable({ scope: 'environment', envName: 'Dev', name: 'a', value: 'edited' }));
+    expect(envVariables(store)[0]).toMatchObject({ value: 'edited' });
 
-    store.dispatch(resetPlaygroundEnvironments());
-    const edited = makeCollection();
-    edited.config.environments[0].variables = [];
-    store.dispatch(updateCollectionEnvironments(edited));
-
-    store.dispatch(resetPlaygroundEnvironments());
-    expect(envVariables(store)).toHaveLength(2);
+    expect(source.config.environments[0].variables[0].value).toBe('1');
+    const reloaded = createOpenCollectionStore();
+    reloaded.dispatch(setPlaygroundCollection(source));
+    expect(envVariables(reloaded)).toEqual([{ name: 'a', value: '1' }, { name: 'b', value: '2' }]);
   });
 });
 

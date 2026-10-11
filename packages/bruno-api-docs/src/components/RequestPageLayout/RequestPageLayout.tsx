@@ -32,11 +32,14 @@ interface RequestPageLayoutProps {
   hasConfigContent: boolean;
   emptyConfigSubheading: string;
   snippetBody?: HttpRequestBody | HttpRequestBodyVariant[];
+  showCodeSnippet?: boolean;
+  showExecutionContext?: boolean;
+  beforeColumns?: React.ReactNode;
   afterColumns?: React.ReactNode;
   onTryClick?: () => void;
   onBreadcrumbClick?: (uuid: string) => void;
   testId?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
@@ -46,6 +49,9 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
   hasConfigContent,
   emptyConfigSubheading,
   snippetBody,
+  showCodeSnippet = true,
+  showExecutionContext = true,
+  beforeColumns,
   afterColumns,
   onTryClick,
   onBreadcrumbClick,
@@ -82,6 +88,7 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
     scriptFlow,
     hasExecutionContext
   } = data;
+  const hasTags = tags.length > 0 || inheritedTags.length > 0;
 
   const authBadge
     = ownAuth === 'inherit' ? (
@@ -115,6 +122,8 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
             />
           </ViewMore>
         )}
+
+        {beforeColumns && <div className="request-before-columns">{beforeColumns}</div>}
 
         <div className="request-columns">
           <div className="request-col-left">
@@ -151,7 +160,7 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
                   </Section>
                 )}
               </>
-            ) : hasExecutionContext ? null : (
+            ) : showExecutionContext && hasExecutionContext ? null : (
               <EmptyState
                 testId="request-config-empty"
                 icon={<FileIcon />}
@@ -161,65 +170,71 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
             )}
           </div>
 
-          <div className="request-col-right">
-            <Section label="Code Snippet" testId="request-section-code-snippet" hideFromNav>
-              <CodeSnippetTabs
-                method={method}
-                url={url}
-                headers={effectiveHeaders}
-                body={snippetBody}
-                auth={effectiveAuth}
-              />
-            </Section>
-            {(tags.length > 0 || inheritedTags.length > 0) && (
-              <Section
-                label="Tags"
-                testId="request-section-tags"
-                hideFromNav
-                badge={
-                  inheritedTags.length > 0 ? (
-                    <ContentTypeBadge label={inheritedCountLabel(inheritedTags.length, 'tag')} />
-                  ) : undefined
-                }
-              >
-                <Tags tags={tags} inheritedTags={inheritedTags} testId="request-tags" />
-              </Section>
-            )}
-          </div>
+          {(showCodeSnippet || hasTags) && (
+            <div className="request-col-right">
+              {showCodeSnippet && (
+                <Section label="Code Snippet" testId="request-section-code-snippet" hideFromNav>
+                  <CodeSnippetTabs
+                    method={method}
+                    url={url}
+                    headers={effectiveHeaders}
+                    body={snippetBody}
+                    auth={effectiveAuth}
+                  />
+                </Section>
+              )}
+              {hasTags && (
+                <Section
+                  label="Tags"
+                  testId="request-section-tags"
+                  hideFromNav
+                  badge={
+                    inheritedTags.length > 0 ? (
+                      <ContentTypeBadge label={inheritedCountLabel(inheritedTags.length, 'tag')} />
+                    ) : undefined
+                  }
+                >
+                  <Tags tags={tags} inheritedTags={inheritedTags} testId="request-tags" />
+                </Section>
+              )}
+            </div>
+          )}
         </div>
 
         {afterColumns}
 
-        <Section
-          label="Execution Context"
-          testId="request-section-execution-context"
-          className="request-fullwidth"
-          collapsible={hasExecutionContext}
-          storageKey="request-execution-context"
-        >
-          {hasExecutionContext ? (
-            <ExecutionContext
-              scriptChain={scriptChain}
-              preVars={preVars}
-              postVars={postVars}
-              inheritedPreVars={inheritedPreVars}
-              inheritedPostVars={inheritedPostVars}
-              assertions={assertions}
-              tests={tests}
-              testScripts={testScripts}
-              flow={scriptFlow}
-              requestLabel={requestLabel}
-              onNavigate={onBreadcrumbClick}
-            />
-          ) : (
-            <EmptyState
-              testId="execution-context-empty"
-              icon={<RefreshIcon />}
-              heading="No execution context"
-              subheading="This request has no scripts, variables, asserts, or tests configured."
-            />
-          )}
-        </Section>
+        {showExecutionContext && (
+          <Section
+            label="Execution Context"
+            testId="request-section-execution-context"
+            className="request-fullwidth"
+            collapsible={hasExecutionContext}
+            storageKey="request-execution-context"
+          >
+            {hasExecutionContext ? (
+              <ExecutionContext
+                scriptChain={scriptChain}
+                preVars={preVars}
+                postVars={postVars}
+                inheritedPreVars={inheritedPreVars}
+                inheritedPostVars={inheritedPostVars}
+                assertions={assertions}
+                tests={tests}
+                testScripts={testScripts}
+                flow={scriptFlow}
+                requestLabel={requestLabel}
+                onNavigate={onBreadcrumbClick}
+              />
+            ) : (
+              <EmptyState
+                testId="execution-context-empty"
+                icon={<RefreshIcon />}
+                heading="No execution context"
+                subheading="This request has no scripts, variables, asserts, or tests configured."
+              />
+            )}
+          </Section>
+        )}
       </StyledWrapper>
     </PageWrapper>
   );

@@ -35,6 +35,7 @@ export const WebsocketMessageCard: React.FC<WebsocketMessageCardProps> = ({
   const [collapsing, setCollapsing] = useState(false);
   const detailId = useId();
   const code = useMemo(() => prettify(type, data), [type, data]);
+  const isEmpty = data.trim().length === 0;
 
   const isOpen = expanded && !collapsing;
 
@@ -83,13 +84,17 @@ export const WebsocketMessageCard: React.FC<WebsocketMessageCardProps> = ({
         <div className="websocket-message-detail-clip">
           {expanded && (
             <div className="websocket-message-detail-body" id={detailId}>
-              <Code
-                code={code}
-                language={BODY_LANGUAGE[type] ?? 'text'}
-                showLineNumbers
-                variableAware
-                testId={`${testId}-code`}
-              />
+              {isEmpty ? (
+                <p className="websocket-message-empty" data-testid={`${testId}-empty`}>Empty message</p>
+              ) : (
+                <Code
+                  code={code}
+                  language={BODY_LANGUAGE[type] ?? 'text'}
+                  showLineNumbers
+                  variableAware
+                  testId={`${testId}-code`}
+                />
+              )}
             </div>
           )}
         </div>

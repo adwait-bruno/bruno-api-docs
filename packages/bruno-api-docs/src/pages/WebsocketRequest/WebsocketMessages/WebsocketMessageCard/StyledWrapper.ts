@@ -35,7 +35,7 @@ export const StyledWrapper = styled.div`
   .websocket-message-toggle:focus-visible {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 0.25rem;
   }
 
   .websocket-message-chevron {
@@ -64,6 +64,20 @@ export const StyledWrapper = styled.div`
   }
   .websocket-message-detail-body {
     border-top: 1px solid var(--border-color);
+  }
+  .websocket-message-detail-body .code-content-wrapper {
+    border: none;
+    border-radius: 0;
+  }
+  .websocket-message-empty {
+    margin: 0;
+    padding: 0.75rem;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-style: italic;
+    font-size: 0.8125rem;
+    line-height: 1;
+    color: var(--text-secondary);
   }
   .websocket-message-detail-body .code-content-numbered {
     min-height: 2.75rem;

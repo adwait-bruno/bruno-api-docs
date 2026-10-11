@@ -49,4 +49,15 @@ describe('WebsocketMessageCard', () => {
     expect(getByTestId(root, 'websocket-message-card-type').text).toBe('Text');
     expect(getByTestId(root, 'websocket-message-card-code').text).toContain('  ping  ');
   });
+
+  it('says the message is empty instead of showing a blank code block', () => {
+    const root = useRenderToDom(
+      <WebsocketMessageCard title="Close" type="text" data="  " expanded onToggle={noop} />
+    );
+
+    expect(getByTestId(root, 'websocket-message-card-title').text).toBe('Close');
+    expect(getByTestId(root, 'websocket-message-card-type').text).toBe('Text');
+    expect(getByTestId(root, 'websocket-message-card-empty').text).toBe('Empty message');
+    expect(queryByTestId(root, 'websocket-message-card-code')).toBeNull();
+  });
 });

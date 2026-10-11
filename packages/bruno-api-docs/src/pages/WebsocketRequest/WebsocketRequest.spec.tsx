@@ -15,7 +15,7 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    expect(getByTestId(root, 'websocket-request-title').text).toBe('Live Updates');
+    expect(getByTestId(root, 'request-title').text).toBe('Live Updates');
     expect(getByTestId(root, 'request-method').text).toBe('WS');
     expect(getByTestId(root, 'request-url').text).toContain('wss://echo.websocket.org');
   });
@@ -25,14 +25,14 @@ describe('WebsocketRequest', () => {
       <WebsocketRequest item={wsItem({ name: 'Bare Socket', type: 'websocket', url: '{{host}}/ws' })} />
     );
 
-    expect(getByTestId(root, 'websocket-request-title').text).toBe('Bare Socket');
+    expect(getByTestId(root, 'request-title').text).toBe('Bare Socket');
     expect(getByTestId(root, 'request-url').text).toContain('{{host}}/ws');
   });
 
   it('falls back to a placeholder name and never offers a Try button', () => {
     const root = useRenderToDom(<WebsocketRequest item={wsItem({ info: { type: 'websocket' }, websocket: {} })} />);
 
-    expect(getByTestId(root, 'websocket-request-title').text).toBe('Untitled Request');
+    expect(getByTestId(root, 'request-title').text).toBe('Untitled Request');
     expect(queryByTestId(root, 'request-try-button')).toBeNull();
   });
 
@@ -47,7 +47,7 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    const markdown = query(getByTestId(root, 'websocket-request-description'), '.markdown-documentation');
+    const markdown = query(getByTestId(root, 'request-description'), '.markdown-documentation');
     expect(query(markdown, 'h1').text).toBe('Live Updates');
     expect(query(markdown, 'p').text).toBe('Streams order updates.');
   });
@@ -59,7 +59,7 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    expect(getByTestId(root, 'websocket-request-description').text).toContain('Streams order updates.');
+    expect(getByTestId(root, 'request-description').text).toContain('Streams order updates.');
   });
 
   it('lists the messages in one section with a count', () => {
@@ -78,10 +78,10 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    expect(getByTestId(root, 'websocket-request-section-messages').text).toContain('2 messages');
+    expect(getByTestId(root, 'request-section-messages').text).toContain('2 messages');
     expect(getByTestId(root, 'websocket-request-messages-card-0-title').text).toBe('Subscribe');
     expect(getByTestId(root, 'websocket-request-messages-card-1-title').text).toBe('Ping');
-    expect(queryByTestId(root, 'websocket-request-config-empty')).toBeNull();
+    expect(queryByTestId(root, 'request-config-empty')).toBeNull();
   });
 
   it('lists the request headers alongside the ones it inherits', () => {
@@ -95,7 +95,7 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    const section = getByTestId(root, 'websocket-request-section-headers');
+    const section = getByTestId(root, 'request-section-headers');
     expect(section.text).toContain('Accept');
     expect(section.text).toContain('X-Tenant');
     expect(section.text).toContain('1 header inherited');
@@ -111,11 +111,11 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    const section = getByTestId(root, 'websocket-request-section-auth');
+    const section = getByTestId(root, 'request-section-auth');
     expect(section.text).toContain('Basic Auth');
     expect(section.text).toContain('reader');
     expect(root.text).not.toContain('s3cret');
-    expect(queryByTestId(root, 'websocket-request-auth-inherited')).toBeNull();
+    expect(queryByTestId(root, 'request-auth-inherited')).toBeNull();
   });
 
   it('resolves inherited auth up to the collection and says where it came from', () => {
@@ -126,8 +126,8 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    expect(getByTestId(root, 'websocket-request-auth-inherited').text).toContain('Inherited from collection');
-    expect(getByTestId(root, 'websocket-request-section-auth').text).toContain('Bearer Token');
+    expect(getByTestId(root, 'request-auth-inherited').text).toContain('Inherited from collection');
+    expect(getByTestId(root, 'request-section-auth').text).toContain('Bearer Token');
   });
 
   it('shows the tags of a request that has no other configuration', () => {
@@ -137,8 +137,8 @@ describe('WebsocketRequest', () => {
       />
     );
 
-    expect(getByTestId(root, 'websocket-request-section-tags').text).toContain('realtime');
-    expect(queryByTestId(root, 'websocket-request-config-empty')).not.toBeNull();
+    expect(getByTestId(root, 'request-section-tags').text).toContain('realtime');
+    expect(queryByTestId(root, 'request-config-empty')).not.toBeNull();
   });
 
   it('shows an empty state when nothing is configured', () => {
@@ -146,9 +146,36 @@ describe('WebsocketRequest', () => {
       <WebsocketRequest item={wsItem({ info: { name: 'Bare', type: 'websocket' }, websocket: { url: 'wss://x' } })} />
     );
 
-    expect(getByTestId(root, 'websocket-request-config-empty').text).toContain('No request configuration');
-    expect(queryByTestId(root, 'websocket-request-section-messages')).toBeNull();
-    expect(queryByTestId(root, 'websocket-request-section-headers')).toBeNull();
-    expect(queryByTestId(root, 'websocket-request-section-auth')).toBeNull();
+    expect(getByTestId(root, 'request-config-empty').text).toContain('No request configuration');
+    expect(queryByTestId(root, 'request-section-messages')).toBeNull();
+    expect(queryByTestId(root, 'request-section-headers')).toBeNull();
+    expect(queryByTestId(root, 'request-section-auth')).toBeNull();
+  });
+
+  it('has no code snippet, execution context, or params from the url query', () => {
+    const root = useRenderToDom(
+      <WebsocketRequest
+        item={wsItem({ info: { name: 'Live Updates', type: 'websocket' }, websocket: { url: 'wss://x/ws?token=abc' } })}
+      />
+    );
+
+    expect(queryByTestId(root, 'request-section-code-snippet')).toBeNull();
+    expect(queryByTestId(root, 'request-section-execution-context')).toBeNull();
+    expect(queryByTestId(root, 'request-section-params')).toBeNull();
+  });
+
+  it('still shows the empty state when the request only has scripts', () => {
+    const root = useRenderToDom(
+      <WebsocketRequest
+        item={wsItem({
+          info: { name: 'Scripted', type: 'websocket' },
+          websocket: { url: 'wss://x' },
+          runtime: { scripts: [{ type: 'before-request', code: 'console.log(1)' }] }
+        })}
+      />
+    );
+
+    expect(getByTestId(root, 'request-config-empty').text).toContain('No request configuration');
+    expect(queryByTestId(root, 'request-section-execution-context')).toBeNull();
   });
 });

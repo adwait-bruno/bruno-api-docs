@@ -7,18 +7,18 @@ import { GrpcMessagesComponent } from '../components/request/grpc-messages.compo
 
 export class WebsocketRequestPage extends BasePage {
   readonly sidebar = new SidebarComponent(this.page);
-  readonly breadcrumb = new BreadcrumbComponent(this.page, 'websocket-request-breadcrumb');
+  readonly breadcrumb = new BreadcrumbComponent(this.page, 'request-breadcrumb');
   readonly urlBar = new RequestUrlBarComponent(this.page);
   readonly messages = new GrpcMessagesComponent(this.page, 'websocket-request-messages');
 
   readonly root: Locator = this.page.getByTestId('websocket-request-page');
-  readonly title: Locator = this.page.getByTestId('websocket-request-title');
-  readonly description: Locator = this.page.getByTestId('websocket-request-description');
+  readonly title: Locator = this.page.getByTestId('request-title');
+  readonly description: Locator = this.page.getByTestId('request-description');
 
-  readonly messagesSection: Locator = this.page.getByTestId('websocket-request-section-messages');
-  readonly headersSection: Locator = this.page.getByTestId('websocket-request-section-headers');
-  readonly authSection: Locator = this.page.getByTestId('websocket-request-section-auth');
-  readonly authInheritedBadge: Locator = this.page.getByTestId('websocket-request-auth-inherited');
+  readonly messagesSection: Locator = this.page.getByTestId('request-section-messages');
+  readonly headersSection: Locator = this.page.getByTestId('request-section-headers');
+  readonly authSection: Locator = this.page.getByTestId('request-section-auth');
+  readonly authInheritedBadge: Locator = this.page.getByTestId('request-auth-inherited');
 
   async open(path: string[]): Promise<void> {
     await this.navigate('/');

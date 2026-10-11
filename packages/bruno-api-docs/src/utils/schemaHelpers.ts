@@ -20,9 +20,9 @@ import type { WebSocketRequest, WebSocketMessageType } from '@opencollection/typ
 import type { Script, Scripts, ScriptType } from '@opencollection/types/common/scripts';
 import { PROTOCOL_BADGE_LABELS } from '@/constants';
 
-export type SupportedRequestItem = HttpRequest | GraphQLRequest | GrpcRequest;
+export type SupportedRequestItem = HttpRequest | GraphQLRequest | GrpcRequest | WebSocketRequest;
 
-export type RequestItem = SupportedRequestItem | WebSocketRequest;
+export type RequestItem = SupportedRequestItem;
 
 /** A request body as stored on an item: a single body, a list of body variants, or none. */
 export type RequestBody = HttpRequestBody | HttpRequestBodyVariant[] | undefined;
@@ -277,13 +277,11 @@ export const getWebSocketMessages = (item: OpenCollectionItem | null | undefined
 
   const variants = Array.isArray(payload) ? payload : [{ title: '', message: payload }];
 
-  return variants
-    .map((variant, index) => ({
-      title: variant.title || `Message ${index + 1}`,
-      type: variant.message?.type ?? 'text',
-      data: variant.message?.data ?? ''
-    }))
-    .filter((entry) => entry.data.trim().length > 0);
+  return variants.map((variant, index) => ({
+    title: variant.title || `Message ${index + 1}`,
+    type: variant.message?.type ?? 'text',
+    data: variant.message?.data ?? ''
+  }));
 };
 
 export const getGrpcProtoFilePath = (item: OpenCollectionItem | null | undefined): string | undefined =>

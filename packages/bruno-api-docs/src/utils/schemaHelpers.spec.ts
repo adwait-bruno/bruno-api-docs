@@ -324,7 +324,7 @@ describe('getWebSocketMessages', () => {
     expect(messages[1].title).toBe('Message 2');
   });
 
-  it('drops blank messages', () => {
+  it('keeps a message whose payload is blank', () => {
     expect(
       getWebSocketMessages(
         item({
@@ -336,7 +336,10 @@ describe('getWebSocketMessages', () => {
           }
         })
       )
-    ).toEqual([{ title: 'Ping', type: 'text', data: 'ping' }]);
+    ).toEqual([
+      { title: 'Empty', type: 'text', data: '  ' },
+      { title: 'Ping', type: 'text', data: 'ping' }
+    ]);
   });
 
   it('returns no messages when the request defines none', () => {

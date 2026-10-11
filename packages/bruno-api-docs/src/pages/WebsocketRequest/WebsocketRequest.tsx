@@ -48,7 +48,7 @@ export const WebsocketRequest: React.FC<WebsocketRequestProps> = ({
     <RequestPageLayout
       data={data}
       method={PROTOCOL_BADGE_LABELS.WEBSOCKET}
-      hasConfigContent={hasMessages}
+      hasConfigContent={false}
       emptyConfigSubheading="This request has no messages, headers, or authentication configured."
       showCodeSnippet={false}
       showExecutionContext={false}

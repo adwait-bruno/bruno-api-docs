@@ -21,6 +21,10 @@ export const StyledWrapper = styled.div`
     margin-top: 1.5rem;
   }
 
+  .request-empty-fullwidth {
+    margin-top: 1.5rem;
+  }
+
   .request-columns {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);

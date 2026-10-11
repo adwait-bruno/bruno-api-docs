@@ -34,8 +34,8 @@ export const WebsocketMessageCard: React.FC<WebsocketMessageCardProps> = ({
 }) => {
   const [collapsing, setCollapsing] = useState(false);
   const detailId = useId();
-  const code = useMemo(() => prettify(type, data), [type, data]);
   const isEmpty = data.trim().length === 0;
+  const code = useMemo(() => (isEmpty ? '' : prettify(type, data)), [isEmpty, type, data]);
 
   const isOpen = expanded && !collapsing;
 

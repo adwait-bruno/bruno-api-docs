@@ -138,7 +138,7 @@ describe('WebsocketRequest', () => {
     );
 
     expect(getByTestId(root, 'request-section-tags').text).toContain('realtime');
-    expect(queryByTestId(root, 'request-config-empty')).not.toBeNull();
+    expect(query(root, '.request-col-left').querySelector('[data-testid="request-config-empty"]')).not.toBeNull();
   });
 
   it('shows an empty state when nothing is configured', () => {
@@ -146,7 +146,8 @@ describe('WebsocketRequest', () => {
       <WebsocketRequest item={wsItem({ info: { name: 'Bare', type: 'websocket' }, websocket: { url: 'wss://x' } })} />
     );
 
-    expect(getByTestId(root, 'request-config-empty').text).toContain('No request configuration');
+    expect(query(root, '.request-empty-fullwidth').text).toContain('No request configuration');
+    expect(root.querySelector('.request-columns')).toBeNull();
     expect(queryByTestId(root, 'request-section-messages')).toBeNull();
     expect(queryByTestId(root, 'request-section-headers')).toBeNull();
     expect(queryByTestId(root, 'request-section-auth')).toBeNull();
@@ -177,5 +178,20 @@ describe('WebsocketRequest', () => {
 
     expect(getByTestId(root, 'request-config-empty').text).toContain('No request configuration');
     expect(queryByTestId(root, 'request-section-execution-context')).toBeNull();
+  });
+
+  it('draws no empty column grid under the messages when nothing else is configured', () => {
+    const root = useRenderToDom(
+      <WebsocketRequest
+        item={wsItem({
+          info: { name: 'Messages Only', type: 'websocket' },
+          websocket: { url: 'wss://x', message: [{ title: 'Ping', message: { type: 'text', data: 'ping' } }] }
+        })}
+      />
+    );
+
+    expect(getByTestId(root, 'request-section-messages').text).toContain('1 message');
+    expect(root.querySelector('.request-columns')).toBeNull();
+    expect(queryByTestId(root, 'request-config-empty')).toBeNull();
   });
 });

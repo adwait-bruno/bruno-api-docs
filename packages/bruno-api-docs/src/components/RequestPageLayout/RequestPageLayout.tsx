@@ -100,6 +100,17 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
     ) : null;
 
   const hasLeftColumn = showAuth || hasParams || hasConfigContent || hasHeaders || hasInheritedHeaders;
+  const hasRightColumn = showCodeSnippet || hasTags;
+  const showConfigEmptyState = !hasLeftColumn && !beforeColumns && !(showExecutionContext && hasExecutionContext);
+
+  const configEmptyState = (
+    <EmptyState
+      testId="request-config-empty"
+      icon={<FileIcon />}
+      heading="No request configuration"
+      subheading={emptyConfigSubheading}
+    />
+  );
 
   return (
     <PageWrapper>
@@ -125,81 +136,80 @@ export const RequestPageLayout: React.FC<RequestPageLayoutProps> = ({
 
         {beforeColumns && <div className="request-before-columns">{beforeColumns}</div>}
 
-        <div className="request-columns">
-          <div className="request-col-left">
-            {hasLeftColumn ? (
-              <>
-                {hasParams && (
-                  <Section label="Params" testId="request-section-params" navGroup={NAV_GROUP.configuration} navLevel={NAV_LEVEL.configItem} labelClassName="section-label-lower">
-                    <RequestParams path={pathParams} query={queryParams} />
-                  </Section>
-                )}
+        {hasLeftColumn || hasRightColumn ? (
+          <div className="request-columns">
+            <div className="request-col-left">
+              {hasLeftColumn ? (
+                <>
+                  {hasParams && (
+                    <Section label="Params" testId="request-section-params" navGroup={NAV_GROUP.configuration} navLevel={NAV_LEVEL.configItem} labelClassName="section-label-lower">
+                      <RequestParams path={pathParams} query={queryParams} />
+                    </Section>
+                  )}
 
-                {children}
+                  {children}
 
-                {(hasHeaders || hasInheritedHeaders) && (
-                  <Section
-                    label="Headers"
-                    testId="request-section-headers"
-                    navGroup={NAV_GROUP.configuration}
-                    navLevel={NAV_LEVEL.configItem}
-                    labelClassName="section-label-lower"
-                    badge={
-                      hasInheritedHeaders ? (
-                        <ContentTypeBadge label={inheritedCountLabel(inheritedHeaders.length, 'header')} />
-                      ) : null
-                    }
-                  >
-                    <PropertyTable rows={headerTableRows} onNavigate={onBreadcrumbClick} />
-                  </Section>
-                )}
+                  {(hasHeaders || hasInheritedHeaders) && (
+                    <Section
+                      label="Headers"
+                      testId="request-section-headers"
+                      navGroup={NAV_GROUP.configuration}
+                      navLevel={NAV_LEVEL.configItem}
+                      labelClassName="section-label-lower"
+                      badge={
+                        hasInheritedHeaders ? (
+                          <ContentTypeBadge label={inheritedCountLabel(inheritedHeaders.length, 'header')} />
+                        ) : null
+                      }
+                    >
+                      <PropertyTable rows={headerTableRows} onNavigate={onBreadcrumbClick} />
+                    </Section>
+                  )}
 
-                {showAuth && (
-                  <Section label="Auth" testId="request-section-auth" navGroup={NAV_GROUP.configuration} navLevel={NAV_LEVEL.configItem} badge={authBadge} labelClassName="section-label-lower">
-                    <AuthDetails auth={effectiveAuth} authModeLabels={AUTH_MODE_LABELS} emptyMessage="No auth" />
-                  </Section>
-                )}
-              </>
-            ) : showExecutionContext && hasExecutionContext ? null : (
-              <EmptyState
-                testId="request-config-empty"
-                icon={<FileIcon />}
-                heading="No request configuration"
-                subheading={emptyConfigSubheading}
-              />
-            )}
-          </div>
-
-          {(showCodeSnippet || hasTags) && (
-            <div className="request-col-right">
-              {showCodeSnippet && (
-                <Section label="Code Snippet" testId="request-section-code-snippet" hideFromNav>
-                  <CodeSnippetTabs
-                    method={method}
-                    url={url}
-                    headers={effectiveHeaders}
-                    body={snippetBody}
-                    auth={effectiveAuth}
-                  />
-                </Section>
-              )}
-              {hasTags && (
-                <Section
-                  label="Tags"
-                  testId="request-section-tags"
-                  hideFromNav
-                  badge={
-                    inheritedTags.length > 0 ? (
-                      <ContentTypeBadge label={inheritedCountLabel(inheritedTags.length, 'tag')} />
-                    ) : undefined
-                  }
-                >
-                  <Tags tags={tags} inheritedTags={inheritedTags} testId="request-tags" />
-                </Section>
+                  {showAuth && (
+                    <Section label="Auth" testId="request-section-auth" navGroup={NAV_GROUP.configuration} navLevel={NAV_LEVEL.configItem} badge={authBadge} labelClassName="section-label-lower">
+                      <AuthDetails auth={effectiveAuth} authModeLabels={AUTH_MODE_LABELS} emptyMessage="No auth" />
+                    </Section>
+                  )}
+                </>
+              ) : (
+                showConfigEmptyState && configEmptyState
               )}
             </div>
-          )}
-        </div>
+
+            {hasRightColumn && (
+              <div className="request-col-right">
+                {showCodeSnippet && (
+                  <Section label="Code Snippet" testId="request-section-code-snippet" hideFromNav>
+                    <CodeSnippetTabs
+                      method={method}
+                      url={url}
+                      headers={effectiveHeaders}
+                      body={snippetBody}
+                      auth={effectiveAuth}
+                    />
+                  </Section>
+                )}
+                {hasTags && (
+                  <Section
+                    label="Tags"
+                    testId="request-section-tags"
+                    hideFromNav
+                    badge={
+                      inheritedTags.length > 0 ? (
+                        <ContentTypeBadge label={inheritedCountLabel(inheritedTags.length, 'tag')} />
+                      ) : undefined
+                    }
+                  >
+                    <Tags tags={tags} inheritedTags={inheritedTags} testId="request-tags" />
+                  </Section>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          showConfigEmptyState && <div className="request-empty-fullwidth">{configEmptyState}</div>
+        )}
 
         {afterColumns}
 

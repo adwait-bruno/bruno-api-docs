@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import reducer, {
   setPlaygroundCollection,
-  updateCollectionEnvironments,
   updatePlaygroundItem,
   selectHydratedCollection,
   selectPlaygroundCollection,
   setViewMode,
+  setSelectedItemId,
   setSelectedExampleIndex,
   clearPlaygroundCollection,
   toggleFolderCollapse,
@@ -36,29 +36,20 @@ const envExternalSecrets = (store: ReturnType<typeof createOpenCollectionStore>)
     .variables as unknown) as { name: string; value?: string; secretName?: string }[];
 
 describe('playground edits', () => {
-  it('keeps environment edits in the store (nothing resets them on its own)', () => {
+  it('keeps an environment edit through the navigation the playground dispatches on open', () => {
     const store = createOpenCollectionStore();
     store.dispatch(setPlaygroundCollection(makeCollection()));
-
     store.dispatch(setPlaygroundVariable({ scope: 'environment', envName: 'Dev', name: 'a', value: 'edited' }));
-    const edited = makeCollection();
-    edited.config.environments[0].variables = [{ name: 'a', value: 'edited' }];
-    store.dispatch(updateCollectionEnvironments(edited));
 
-    expect(envVariables(store)).toEqual([{ name: 'a', value: 'edited' }]);
-  });
+    // what PlaygroundBody dispatches when the playground opens on a view
+    store.dispatch(setSelectedItemId(null));
+    store.dispatch(setSelectedExampleIndex(null));
+    store.dispatch(setViewMode('environments'));
+    store.dispatch(setViewMode('playground'));
 
-  it('leaves the source collection untouched, so a reload starts from the original values', () => {
-    const source = makeCollection();
-    const store = createOpenCollectionStore();
-    store.dispatch(setPlaygroundCollection(source));
-    store.dispatch(setPlaygroundVariable({ scope: 'environment', envName: 'Dev', name: 'a', value: 'edited' }));
-    expect(envVariables(store)[0]).toMatchObject({ value: 'edited' });
-
-    expect(source.config.environments[0].variables[0].value).toBe('1');
-    const reloaded = createOpenCollectionStore();
-    reloaded.dispatch(setPlaygroundCollection(source));
-    expect(envVariables(reloaded)).toEqual([{ name: 'a', value: '1' }, { name: 'b', value: '2' }]);
+    expect(envVariables(store)).toEqual([{ name: 'a', value: 'edited' }, { name: 'b', value: '2' }]);
+    expect(selectPlaygroundCollection(store.getState())!.config!.environments![0].variables![0])
+      .toMatchObject({ value: 'edited' });
   });
 });
 

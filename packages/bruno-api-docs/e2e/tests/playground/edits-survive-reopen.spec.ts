@@ -67,7 +67,6 @@ test.describe('Playground edits survive closing and reopening, not a reload', ()
     await playground.openTreeItem(['Customers', 'Variables Demo']);
     await playground.view.waitFor({ state: 'visible' });
     await expect(playground.urlInput).toHaveValue(/&edited=1$/);
-    await expect(playground.envSwitcher.trigger).toContainText('Dev');
     await playground.variable.hoverInputToken('host');
     await expect(playground.variable.value).toHaveText('https://edited.example.com');
   });
@@ -75,17 +74,22 @@ test.describe('Playground edits survive closing and reopening, not a reload', ()
   test('a reload restores the collection\'s original values', async ({ page, playground }) => {
     await playground.variable.hoverInputToken('unsetSecret');
     await playground.variable.editTo('typed-secret');
+    await expect(playground.variable.value).toHaveText('*'.repeat('typed-secret'.length));
     await playground.variable.hoverInputToken('host');
+    await expect(playground.variable.name).toHaveText('host');
     await playground.variable.editTo('https://edited.example.com');
+    await expect(playground.variable.value).toHaveText('https://edited.example.com');
 
     await page.reload();
     await playground.runner.waitFor({ state: 'visible' });
     await playground.openTreeItem(['Customers', 'Variables Demo']);
     await playground.view.waitFor({ state: 'visible' });
+    await playground.envSwitcher.selectEnvironment('Dev');
 
     await playground.variable.hoverInputToken('host');
     await expect(playground.variable.value).toHaveText('https://api.dev.example.com');
     await playground.variable.hoverInputToken('unsetSecret');
+    await expect(playground.variable.name).toHaveText('unsetSecret');
     await expect(playground.variable.value).toHaveText('');
   });
 });

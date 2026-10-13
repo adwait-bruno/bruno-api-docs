@@ -18,10 +18,6 @@ export const variablesFixtureCollection = {
           type: 'aws-secrets-manager',
           variables: [{ name: 'vaultKey', secretName: 'prod/payment/api-key' }]
         }
-      },
-      {
-        name: 'Staging',
-        variables: [{ name: 'host', value: 'https://api.staging.example.com' }]
       }
     ]
   },

@@ -1,7 +1,5 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { usePlaygroundUrlState, useIsMobilePhone } from '@/hooks';
-import { useAppDispatch } from '@/store/hooks';
-import { resetPlaygroundEnvironments } from '@/store/slices/playground';
 import InlineDock from './docks/InlineDock/InlineDock';
 import BottomSheetDock from './docks/BottomSheetDock/BottomSheetDock';
 import ModalDock from './docks/ModalDock/ModalDock';
@@ -35,7 +33,6 @@ interface PlaygroundProps {
 }
 
 const Playground: React.FC<PlaygroundProps> = ({ openNonce }) => {
-  const dispatch = useAppDispatch();
   const { open, dock, requestSlug, exampleSlug, setDock, closePlayground } = usePlaygroundUrlState();
   const isPhone = useIsMobilePhone();
   // On a phone the playground is always the fullscreen MobileDock, and its
@@ -43,10 +40,6 @@ const Playground: React.FC<PlaygroundProps> = ({ openNonce }) => {
   // the sidebar-open default and PlaygroundBody's overlay behaviour follow.
   const effectiveDock = isPhone ? 'inline' : dock;
 
-  // discard environment edits when the playground reopens
-  useEffect(() => {
-    if (open) dispatch(resetPlaygroundEnvironments());
-  }, [open, dispatch]);
   // In the inline dock the sidebar is an overlay over the request/response, so it
   // starts closed (content full width) and opens on demand; bottom/modal show it
   // side by side, so it starts open. Reset to the dock's default when the dock changes.

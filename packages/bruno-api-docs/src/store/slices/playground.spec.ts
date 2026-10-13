@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import reducer, {
   setPlaygroundCollection,
-  updateCollectionEnvironments,
   updatePlaygroundItem,
-  resetPlaygroundEnvironments,
   selectHydratedCollection,
   selectPlaygroundCollection,
   setViewMode,
+  setSelectedItemId,
   setSelectedExampleIndex,
   clearPlaygroundCollection,
   toggleFolderCollapse,
@@ -36,31 +35,21 @@ const envExternalSecrets = (store: ReturnType<typeof createOpenCollectionStore>)
   (selectHydratedCollection(store.getState())!.config!.environments![0].externalSecrets!
     .variables as unknown) as { name: string; value?: string; secretName?: string }[];
 
-describe('resetPlaygroundEnvironments', () => {
-  it('restores the original environments after an edit', () => {
+describe('playground edits', () => {
+  it('keeps an environment edit through the navigation the playground dispatches on open', () => {
     const store = createOpenCollectionStore();
     store.dispatch(setPlaygroundCollection(makeCollection()));
+    store.dispatch(setPlaygroundVariable({ scope: 'environment', envName: 'Dev', name: 'a', value: 'edited' }));
 
-    const edited = makeCollection();
-    edited.config.environments[0].variables = [{ name: 'a', value: '1' }];
-    store.dispatch(updateCollectionEnvironments(edited));
-    expect(envVariables(store)).toHaveLength(1);
+    // what PlaygroundBody dispatches when the playground opens on a view
+    store.dispatch(setSelectedItemId(null));
+    store.dispatch(setSelectedExampleIndex(null));
+    store.dispatch(setViewMode('environments'));
+    store.dispatch(setViewMode('playground'));
 
-    store.dispatch(resetPlaygroundEnvironments());
-    expect(envVariables(store).map((v: any) => v.name)).toEqual(['a', 'b']);
-  });
-
-  it('keeps the restore independent of later edits (cloned, not shared)', () => {
-    const store = createOpenCollectionStore();
-    store.dispatch(setPlaygroundCollection(makeCollection()));
-
-    store.dispatch(resetPlaygroundEnvironments());
-    const edited = makeCollection();
-    edited.config.environments[0].variables = [];
-    store.dispatch(updateCollectionEnvironments(edited));
-
-    store.dispatch(resetPlaygroundEnvironments());
-    expect(envVariables(store)).toHaveLength(2);
+    expect(envVariables(store)).toEqual([{ name: 'a', value: 'edited' }, { name: 'b', value: '2' }]);
+    expect(selectPlaygroundCollection(store.getState())!.config!.environments![0].variables![0])
+      .toMatchObject({ value: 'edited' });
   });
 });
 

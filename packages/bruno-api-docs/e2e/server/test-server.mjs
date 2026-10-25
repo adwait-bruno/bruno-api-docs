@@ -32,8 +32,10 @@ const handle = async (req, res) => {
   if (url.pathname === '/health') return send(res, 200, { ...cors, 'Content-Type': 'text/plain' }, 'ok');
 
   if (url.pathname === '/delay') {
-    await new Promise((resolve) => setTimeout(resolve, Number(url.searchParams.get('ms') ?? 5000)));
-    return send(res, 200, { ...cors, 'Content-Type': 'text/plain' }, 'done');
+    const ms = Math.min(Math.max(Number(url.searchParams.get('ms') ?? 5000) || 0, 0), 30000);
+    const timer = setTimeout(() => send(res, 200, { ...cors, 'Content-Type': 'text/plain' }, 'done'), ms);
+    req.on('close', () => clearTimeout(timer));
+    return;
   }
 
   if (url.pathname === '/echo') {

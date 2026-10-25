@@ -53,8 +53,8 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
   // Handle loading, empty, and error states
   if (isLoading) {
     return (
-      <StyledWrapper className="flex flex-col items-center justify-center align-items:center gap-4" data-testid="response-loading">
-        <StopWatch startTime={requestStartedAt} />
+      <StyledWrapper className="flex flex-col items-center justify-center gap-4" data-testid="response-loading">
+        <StopWatch startTime={requestStartedAt} testId="response-stopwatch" />
         <span className="loading-icon">
           <RefreshIcon />
         </span>

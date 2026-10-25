@@ -281,6 +281,25 @@ describe('RequestExecutor digest auth', () => {
     expect(responseMatch![1]).toBe(expected);
   });
 
+  it('cancels the signed retry when the caller aborts', async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(401, { 'www-authenticate': CHALLENGE }))
+      .mockImplementationOnce((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+        controller.abort();
+      }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new RequestExecutor().executeRequest(
+      digestRequest({ type: 'digest', username: 'user', password: 'pass' }),
+      { signal: controller.signal }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.errorType).toBe('cancelled');
+  });
+
   it('sends both digest legs with credentials omitted', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(401, { 'www-authenticate': CHALLENGE }))

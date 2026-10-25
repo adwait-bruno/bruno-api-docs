@@ -139,9 +139,7 @@ export class RequestExecutor {
       signals.push(cancelSignal);
     }
 
-    if (signals.length === 1) {
-      options.signal = signals[0];
-    } else if (signals.length > 1) {
+    if (signals.length > 0) {
       options.signal = anySignal(signals);
     }
 

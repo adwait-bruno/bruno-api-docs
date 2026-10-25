@@ -106,7 +106,6 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
 
   useEffect(() => {
     return () => {
-      abortControllerRef.current?.abort(VIEW_UNMOUNTED);
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       if (pendingSaveRef.current) {
         dispatch(updatePlaygroundItem(pendingSaveRef.current));
@@ -114,6 +113,13 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
       }
     };
   }, [dispatch]);
+
+  useEffect(() => () => {
+    abortControllerRef.current?.abort(VIEW_UNMOUNTED);
+    abortControllerRef.current = null;
+    sendInFlightRef.current = false;
+    setRequestStartedAt(null);
+  }, [itemUuid]);
 
   const handleSendRequest = useCallback(async () => {
     if (sendInFlightRef.current) return;

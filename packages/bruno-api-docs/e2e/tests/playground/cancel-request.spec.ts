@@ -140,7 +140,7 @@ test.describe('cancelling an in-flight playground request', () => {
     const aborted = page.waitForEvent('requestfailed', (request) => request.url() === SLOW_URL);
     await playground.close();
 
-    expect((await aborted).failure()?.errorText).toBe('net::ERR_ABORTED');
+    expect((await aborted).failure()).toEqual({ errorText: 'net::ERR_ABORTED' });
   });
 
   test('cancelling while a pre-request script is still running clears the loading view and drops the script\'s changes', async ({

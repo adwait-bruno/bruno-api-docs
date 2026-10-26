@@ -1,7 +1,7 @@
 import type { OpenCollection } from '@opencollection/types';
 import type { HttpRequest } from '@opencollection/types/requests/http';
 import type { Item, Folder } from '@opencollection/types/collection/item';
-import { getItemName, getHttpMethod, getRequestUrl, isFolder, isHttpRequest } from '@/utils/schemaHelpers';
+import { getItemName, getHttpMethod, getRequestUrl, isFolder, isHttpRequest, isScriptFile } from '@/utils/schemaHelpers';
 import { getAncestorsByUuid } from '@/utils/fileUtils';
 import { getItemUuid } from '@/utils/itemUtils';
 
@@ -70,6 +70,35 @@ export const findItemByPath = (collection: OpenCollection, requestPath: string):
   };
 
   return walk(collection.items, segments);
+};
+
+export type ScriptFileLookup
+  = | { found: true; code: string }
+    | { found: false; reason: 'not-found' | 'outside-collection' };
+
+export const findScriptFileByPath = (collection: OpenCollection, modulePath: string): ScriptFileLookup => {
+  if (typeof modulePath !== 'string') return { found: false, reason: 'not-found' };
+  if (modulePath.startsWith('/')) return { found: false, reason: 'outside-collection' };
+
+  const segments: string[] = [];
+  for (const segment of modulePath.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') {
+      if (!segments.length) return { found: false, reason: 'outside-collection' };
+      segments.pop();
+      continue;
+    }
+    segments.push(segment);
+  }
+
+  const fileName = segments.pop()?.replace(/\.js$/i, '');
+  if (!fileName) return { found: false, reason: 'not-found' };
+  let items = collection.items;
+  for (const segment of segments) {
+    items = (items?.find((item) => isFolder(item) && getItemName(item) === segment) as Folder | undefined)?.items;
+  }
+  const script = items?.find((item) => isScriptFile(item) && getItemName(item) === fileName);
+  return isScriptFile(script) ? { found: true, code: script.script ?? '' } : { found: false, reason: 'not-found' };
 };
 
 /**

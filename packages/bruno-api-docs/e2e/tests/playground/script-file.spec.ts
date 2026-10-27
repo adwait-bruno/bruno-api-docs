@@ -25,7 +25,7 @@ test.describe('Playground — .js script files', () => {
   test('opens a .js file as its source in a code editor', async ({ page, playground }) => {
     await openScript(page, playground);
 
-    await expect(playground.scriptFileTitle).toHaveText('Script.js');
+    await expect(playground.scriptFileTitle).toHaveText('Script');
     await expect(playground.scriptFileEditor.root).toContainText('user@example.com');
     await expect(playground.scriptFileEditor.root).toContainText('password123');
   });

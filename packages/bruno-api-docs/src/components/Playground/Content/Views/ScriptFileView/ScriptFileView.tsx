@@ -4,7 +4,7 @@ import TitleLabel from '@/components/TitleLabel/TitleLabel';
 import CodeEditor from '@/ui/CodeEditor/CodeEditor';
 import { useAppDispatch } from '@/store/hooks';
 import { updatePlaygroundScriptFile } from '@/store/slices/playground';
-import { getItemName, getScriptFileDisplayName } from '@/utils/schemaHelpers';
+import { getItemName } from '@/utils/schemaHelpers';
 import { getItemUuid } from '@/utils/itemUtils';
 import { useDebouncedSave } from '@/hooks/useDebouncedSave';
 import { StyledWrapper } from './StyledWrapper';
@@ -16,7 +16,7 @@ interface ScriptFileViewProps {
 const ScriptFileView: React.FC<ScriptFileViewProps> = ({ item }) => {
   const dispatch = useAppDispatch();
   const uuid = getItemUuid(item);
-  const name = getScriptFileDisplayName(getItemName(item) || 'Script');
+  const name = getItemName(item) || 'Script';
   const [source, setSource] = useState(item.script ?? '');
 
   const scheduleSave = useDebouncedSave((save: { uuid: string; script: string }) => {

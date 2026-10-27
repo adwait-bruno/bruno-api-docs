@@ -90,7 +90,7 @@ describe('PlaygroundBody script file view', () => {
         </MemoryRouter>
       </Provider>
     );
-    expect(getByTestId(root, 'playground-script-file-title').textContent).toBe('helpers.js');
+    expect(getByTestId(root, 'playground-script-file-title').textContent).toBe('helpers');
     expect(getByTestId(root, 'code-editor').textContent).toBe('module.exports = { a: 1 };');
     expect(root.querySelector('[data-testid="method-select"]')).toBeNull();
     expect(root.querySelector('[data-testid="query-bar-url"]')).toBeNull();

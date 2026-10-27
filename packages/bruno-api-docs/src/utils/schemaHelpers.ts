@@ -142,10 +142,6 @@ export const isScriptFile = (item: OpenCollectionItem | null | undefined): item 
   return getItemType(item) === 'script';
 };
 
-export const getScriptFileDisplayName = (name: string): string => {
-  return /\.[jt]s$/i.test(name) ? name : `${name}.js`;
-};
-
 /**
  * Check if an item is a GraphQL request
  */

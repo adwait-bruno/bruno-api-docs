@@ -1,5 +1,4 @@
-export { getTreePathFromCollectionToItem, findItemByPath, findScriptFileByPath } from './tree-utils';
-export type { ScriptFileLookup } from './tree-utils';
+export { getTreePathFromCollectionToItem, findItemByPath } from './tree-utils';
 
 export { mergeHeaders, mergeAuth, mergeScripts } from './request-merger';
 

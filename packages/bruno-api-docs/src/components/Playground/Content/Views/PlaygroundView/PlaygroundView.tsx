@@ -23,6 +23,7 @@ import { getInheritedAuthSummary, resolveInheritedAuth, getInheritedHeaders } fr
 import UnsupportedRequest from '@/components/UnsupportedRequest/UnsupportedRequest';
 import { FileNotFoundIcon } from '@/assets/icons';
 import { useSplitPane } from '@/hooks/useSplitPane';
+import { useDebouncedSave } from '@/hooks/useDebouncedSave';
 import { SplitDivider } from '@/components/SplitDivider/SplitDivider';
 
 interface PlaygroundViewProps {
@@ -73,8 +74,6 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
     return [...ownRows, ...inheritedRows];
   }, [collection, ancestry, editableItem, effectiveAuth]);
 
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingSaveRef = useRef<{ uuid: string; item: HttpRequest } | null>(null);
   const sendInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -83,30 +82,16 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
   }, [item]);
 
   // Save changes to Redux with debouncing.
+  const scheduleSave = useDebouncedSave((save: { uuid: string; item: HttpRequest }) => {
+    dispatch(updatePlaygroundItem(save));
+  });
+
   const handleItemChange = useCallback((updatedItem: HttpRequest) => {
     setEditableItem(updatedItem);
 
     const itemUuid = (updatedItem as any).uuid || (item as any).uuid;
-    if (itemUuid) pendingSaveRef.current = { uuid: itemUuid, item: { ...updatedItem, uuid: itemUuid } as any };
-
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      if (pendingSaveRef.current) {
-        dispatch(updatePlaygroundItem(pendingSaveRef.current));
-        pendingSaveRef.current = null;
-      }
-    }, 500);
-  }, [dispatch, item]);
-
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (pendingSaveRef.current) {
-        dispatch(updatePlaygroundItem(pendingSaveRef.current));
-        pendingSaveRef.current = null;
-      }
-    };
-  }, [dispatch]);
+    if (itemUuid) scheduleSave({ uuid: itemUuid, item: { ...updatedItem, uuid: itemUuid } as any });
+  }, [scheduleSave, item]);
 
   const handleSendRequest = useCallback(async () => {
     if (sendInFlightRef.current) return;

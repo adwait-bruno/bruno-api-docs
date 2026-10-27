@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { newQuickJSWASMModule } from 'quickjs-emscripten';
 import type { OpenCollection } from '@opencollection/types';
 import addCryptoUtilsShimToContext from './shims/lib/crypto-utils';
@@ -51,8 +51,13 @@ describe('require() of a .js file from the collection', () => {
     addRequireShimToContext(vm, collection);
   });
 
+  afterEach(() => {
+    vm.dispose();
+  });
+
   it('runs the file and returns its exports, including a file it requires from its own folder', () => {
     expect(inVm('require(\'./billing/Script.js\').total(100)')).toBe(110);
+    expect(inVm('require(\'/billing/Script.js\').total(100)')).toBe(110);
   });
 
   it('runs a file once per script', () => {
@@ -67,8 +72,6 @@ describe('require() of a .js file from the collection', () => {
   it('reports a missing file and a path outside the collection with the desktop app\'s errors', () => {
     expect(errorMessageOf('require(\'./billing/Nope.js\')')).toBe('Cannot find module ./billing/Nope.js');
     expect(errorMessageOf('require(\'../outside.js\')'))
-      .toBe('Access to files outside of the collectionPath is not allowed.');
-    expect(errorMessageOf('require(\'/billing/Script.js\')'))
       .toBe('Access to files outside of the collectionPath is not allowed.');
   });
 

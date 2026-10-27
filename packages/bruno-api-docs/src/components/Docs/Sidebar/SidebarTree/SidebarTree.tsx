@@ -4,7 +4,7 @@ import type { HttpRequest, HttpRequestExample } from '@opencollection/types/requ
 import SidebarNavLink from '../SidebarNavLink/SidebarNavLink';
 import { ExampleIcon } from '@/assets/icons';
 import { StyledWrapper } from './StyledWrapper';
-import { getItemName, isFolder, isScriptFile, getRequestBadgeLabel } from '@/utils/schemaHelpers';
+import { getItemName, isFolder, isScriptFile, getRequestBadgeLabel, getScriptFileDisplayName } from '@/utils/schemaHelpers';
 import { getItemUuid } from '@/utils/itemUtils';
 import { orderSiblings } from '@/routing/navModel';
 import { ChevronButton } from './ChevronButton/ChevronButton';
@@ -116,7 +116,7 @@ const SidebarTree: React.FC<SidebarTreeProps> = ({
         }
 
         const script = isScriptFile(item);
-        const displayName = script && !/\.[jt]s$/i.test(name) ? `${name}.js` : name;
+        const displayName = script ? getScriptFileDisplayName(name) : name;
         const method = getRequestBadgeLabel(item);
 
         const examples: HttpRequestExample[]

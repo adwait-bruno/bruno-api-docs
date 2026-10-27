@@ -1,5 +1,5 @@
 ---
-"@usebruno/api-docs": patch
+"@usebruno/api-docs": minor
 ---
 
-feat(playground):adds support for local .js require in the playground
+In the Playground, .js script files now open as editable code instead of an empty request, and request scripts can require() .js files from the collection.

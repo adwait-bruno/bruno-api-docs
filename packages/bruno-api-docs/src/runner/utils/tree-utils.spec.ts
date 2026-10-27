@@ -84,10 +84,29 @@ describe('findScriptFileByPath', () => {
     ]
   } as OpenCollection;
 
-  it('finds a script by its path from the collection root, with or without ./ and .js', () => {
+  it('finds a script by its path from the collection root, with or without ./, / and .js', () => {
     expect(findScriptFileByPath(collection, './billing/Script.js')).toEqual({ found: true, code: 'module.exports = 1;' });
     expect(findScriptFileByPath(collection, 'billing/Script')).toEqual({ found: true, code: 'module.exports = 1;' });
     expect(findScriptFileByPath(collection, 'helpers.js')).toEqual({ found: true, code: 'module.exports = 2;' });
+    expect(findScriptFileByPath(collection, '/billing/Script.js')).toEqual({ found: true, code: 'module.exports = 1;' });
+  });
+
+  it('finds a folder by the name Bruno desktop gives it on disk', () => {
+    const withColon = { items: [folderOf('Auth: Login', [scriptOf('token', 'module.exports = 3;')])] } as OpenCollection;
+    expect(findScriptFileByPath(withColon, './Auth- Login/token.js')).toEqual({ found: true, code: 'module.exports = 3;' });
+    expect(findScriptFileByPath(withColon, './Auth: Login/token.js')).toEqual({ found: true, code: 'module.exports = 3;' });
+  });
+
+  it('ignores letter case only when no exact name matches', () => {
+    const cased = {
+      items: [
+        folderOf('billing', [scriptOf('Script', 'module.exports = 1;'), scriptOf('script', 'module.exports = 2;')]),
+        folderOf('Billing', [scriptOf('Script', 'module.exports = 3;')])
+      ]
+    } as OpenCollection;
+    expect(findScriptFileByPath(cased, './BILLING/SCRIPT.js')).toEqual({ found: true, code: 'module.exports = 1;' });
+    expect(findScriptFileByPath(cased, './billing/script.js')).toEqual({ found: true, code: 'module.exports = 2;' });
+    expect(findScriptFileByPath(cased, './Billing/Script.js')).toEqual({ found: true, code: 'module.exports = 3;' });
   });
 
   it('follows .. as long as the path stays inside the collection', () => {
@@ -98,7 +117,6 @@ describe('findScriptFileByPath', () => {
     expect(findScriptFileByPath(collection, '../helpers.js')).toEqual({ found: false, reason: 'outside-collection' });
     expect(findScriptFileByPath(collection, 'billing/../../helpers.js'))
       .toEqual({ found: false, reason: 'outside-collection' });
-    expect(findScriptFileByPath(collection, '/billing/Script.js')).toEqual({ found: false, reason: 'outside-collection' });
   });
 
   it('reports not-found for a missing file, a request, a folder or an empty path', () => {

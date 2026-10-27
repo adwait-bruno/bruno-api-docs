@@ -10,6 +10,7 @@ vi.mock('@/ui/CodeEditor/CodeEditor', () => ({
 import PlaygroundBody from './PlaygroundBody';
 import { createOpenCollectionStore } from '@/store/store';
 import { useRenderToDom } from '@/hooks/useRenderToDom';
+import { getByTestId } from '@/test-utils/dom';
 import {
   setPlaygroundCollection,
   setSelectedItemId,
@@ -89,8 +90,8 @@ describe('PlaygroundBody script file view', () => {
         </MemoryRouter>
       </Provider>
     );
-    expect(root.querySelector('[data-testid="playground-script-file-title"]')?.textContent).toBe('helpers');
-    expect(root.querySelector('[data-testid="code-editor"]')?.textContent).toBe('module.exports = { a: 1 };');
+    expect(getByTestId(root, 'playground-script-file-title').textContent).toBe('helpers.js');
+    expect(getByTestId(root, 'code-editor').textContent).toBe('module.exports = { a: 1 };');
     expect(root.querySelector('[data-testid="method-select"]')).toBeNull();
     expect(root.querySelector('[data-testid="query-bar-url"]')).toBeNull();
     expect(root.querySelector('[data-testid="query-bar-send"]')).toBeNull();

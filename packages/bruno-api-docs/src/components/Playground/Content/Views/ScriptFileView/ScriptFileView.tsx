@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { ScriptFile } from '@opencollection/types/collection/item';
 import TitleLabel from '@/components/TitleLabel/TitleLabel';
 import CodeEditor from '@/ui/CodeEditor/CodeEditor';
 import { useAppDispatch } from '@/store/hooks';
 import { updatePlaygroundScriptFile } from '@/store/slices/playground';
-import { getItemName } from '@/utils/schemaHelpers';
+import { getItemName, getScriptFileDisplayName } from '@/utils/schemaHelpers';
 import { getItemUuid } from '@/utils/itemUtils';
+import { useDebouncedSave } from '@/hooks/useDebouncedSave';
 import { StyledWrapper } from './StyledWrapper';
 
 interface ScriptFileViewProps {
@@ -15,39 +16,17 @@ interface ScriptFileViewProps {
 const ScriptFileView: React.FC<ScriptFileViewProps> = ({ item }) => {
   const dispatch = useAppDispatch();
   const uuid = getItemUuid(item);
-  const name = getItemName(item) || 'Script';
+  const name = getScriptFileDisplayName(getItemName(item) || 'Script');
   const [source, setSource] = useState(item.script ?? '');
 
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingSaveRef = useRef<{ uuid: string; script: string } | null>(null);
-
-  useEffect(() => {
-    setSource(item.script ?? '');
-  }, [item]);
+  const scheduleSave = useDebouncedSave((save: { uuid: string; script: string }) => {
+    dispatch(updatePlaygroundScriptFile(save));
+  });
 
   const handleChange = useCallback((value: string) => {
     setSource(value);
-    if (!uuid) return;
-    pendingSaveRef.current = { uuid, script: value };
-
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      if (pendingSaveRef.current) {
-        dispatch(updatePlaygroundScriptFile(pendingSaveRef.current));
-        pendingSaveRef.current = null;
-      }
-    }, 500);
-  }, [dispatch, uuid]);
-
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      if (pendingSaveRef.current) {
-        dispatch(updatePlaygroundScriptFile(pendingSaveRef.current));
-        pendingSaveRef.current = null;
-      }
-    };
-  }, [dispatch]);
+    if (uuid) scheduleSave({ uuid, script: value });
+  }, [scheduleSave, uuid]);
 
   return (
     <StyledWrapper data-testid="playground-script-file">

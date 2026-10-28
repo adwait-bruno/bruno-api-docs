@@ -17,6 +17,9 @@ import {
   setPlaygroundResponse,
   clearPlaygroundResponse,
   selectPlaygroundResponse,
+  setPlaygroundRequestStarted,
+  clearPlaygroundRequestStarted,
+  selectPlaygroundRequestStartedAt,
   applyScriptVariableChanges
 } from '@/store/slices/playground';
 import { getItemName, isPlaygroundUnsupported, getRequestAuth, getRequestHeaders } from '@/utils/schemaHelpers';
@@ -25,8 +28,7 @@ import UnsupportedRequest from '@/components/UnsupportedRequest/UnsupportedReque
 import { FileNotFoundIcon } from '@/assets/icons';
 import { useSplitPane } from '@/hooks/useSplitPane';
 import { SplitDivider } from '@/components/SplitDivider/SplitDivider';
-
-const VIEW_UNMOUNTED = 'view-unmounted';
+import { playgroundRuns, PLAYGROUND_CLOSED } from './playgroundRuns';
 
 interface PlaygroundViewProps {
   item: HttpRequest;
@@ -41,7 +43,7 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
   const itemName = getItemName(editableItem) || 'Untitled Request';
   const itemUuid = (item as any).uuid;
   const response = useAppSelector((state) => selectPlaygroundResponse(state, itemUuid));
-  const [requestStartedAt, setRequestStartedAt] = useState<number | null>(null);
+  const requestStartedAt = useAppSelector((state) => selectPlaygroundRequestStartedAt(state, itemUuid));
   const isLoading = requestStartedAt !== null;
   const promptVariablesController = usePromptVariables();
   const { collect: collectPromptVariables } = promptVariablesController;
@@ -79,9 +81,6 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSaveRef = useRef<{ uuid: string; item: HttpRequest } | null>(null);
-  const sendInFlightRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const latestSendRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setEditableItem(item);
@@ -114,16 +113,10 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
     };
   }, [dispatch]);
 
-  useEffect(() => () => {
-    abortControllerRef.current?.abort(VIEW_UNMOUNTED);
-    abortControllerRef.current = null;
-    sendInFlightRef.current = false;
-    setRequestStartedAt(null);
-  }, [itemUuid]);
-
   const handleSendRequest = useCallback(async () => {
-    if (sendInFlightRef.current) return;
-    sendInFlightRef.current = true;
+    const uuid = itemUuid;
+    if (playgroundRuns.isSending(uuid)) return;
+    playgroundRuns.beginSend(uuid);
     let controller: AbortController | null = null;
 
     try {
@@ -143,9 +136,8 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
       if (!promptVariables) return;
 
       controller = new AbortController();
-      abortControllerRef.current = controller;
-      latestSendRef.current = controller;
-      setRequestStartedAt(Date.now());
+      playgroundRuns.start(uuid, controller);
+      dispatch(setPlaygroundRequestStarted({ uuid, startedAt: Date.now() }));
       const result = await requestRunner.runRequest({
         item: editableItem,
         collection,
@@ -158,11 +150,11 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
 
       if (controller.signal.aborted) {
         const serverReplied = result.status !== undefined;
-        const superseded = latestSendRef.current !== controller || controller.signal.reason === VIEW_UNMOUNTED;
+        const superseded = !playgroundRuns.isLatest(uuid, controller) || controller.signal.reason === PLAYGROUND_CLOSED;
         if (!serverReplied || superseded) return;
       }
 
-      dispatch(setPlaygroundResponse({ uuid: itemUuid, response: result }));
+      dispatch(setPlaygroundResponse({ uuid, response: result }));
 
       if (result.environmentVariables || result.collectionVariables) {
         dispatch(applyScriptVariableChanges({
@@ -172,27 +164,21 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
       }
     } catch (error) {
       dispatch(setPlaygroundResponse({
-        uuid: itemUuid,
+        uuid,
         response: {
           error: error instanceof Error ? error.message : 'Unknown error occurred'
         }
       }));
     } finally {
-      if (!controller || abortControllerRef.current === controller) {
-        sendInFlightRef.current = false;
-        abortControllerRef.current = null;
-        setRequestStartedAt(null);
+      if (playgroundRuns.finish(uuid, controller)) {
+        dispatch(clearPlaygroundRequestStarted(uuid));
       }
     }
   }, [collection, editableItem, selectedEnvironment, itemUuid, dispatch, collectPromptVariables]);
 
   const handleCancelRequest = useCallback(() => {
-    const controller = abortControllerRef.current;
-    if (!controller) return;
-    controller.abort();
-    abortControllerRef.current = null;
-    sendInFlightRef.current = false;
-    setRequestStartedAt(null);
+    if (!playgroundRuns.cancel(itemUuid)) return;
+    dispatch(clearPlaygroundRequestStarted(itemUuid));
     dispatch(clearPlaygroundResponse(itemUuid));
   }, [dispatch, itemUuid]);
 

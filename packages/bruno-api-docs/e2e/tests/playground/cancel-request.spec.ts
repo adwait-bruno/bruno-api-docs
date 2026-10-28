@@ -129,6 +129,40 @@ test.describe('cancelling an in-flight playground request', () => {
     await expect(responsePane.emptyHint).toBeVisible();
   });
 
+  test('a request keeps running after opening another one, and shows its timer and Cancel on the way back', async ({
+    playground,
+    responsePane
+  }) => {
+    await responsePane.send();
+    await expect(responsePane.loadingView).toBeVisible();
+
+    await playground.openRequest('echo json');
+    await expect(responsePane.loadingView).toBeHidden();
+
+    await playground.openRequest('get users');
+    await expect(responsePane.stopwatch).toBeVisible();
+    await responsePane.cancelButton.click();
+    await expect(responsePane.loadingView).toBeHidden();
+  });
+
+  test('a request that finishes while another view is open shows its response on the way back', async ({
+    page,
+    playground,
+    responsePane
+  }) => {
+    const slowUrl = `${appConfig.testServerURL}/delay?ms=2000`;
+    await playground.urlInput.fill(slowUrl);
+    const replied = page.waitForResponse(slowUrl);
+    await responsePane.send();
+    await expect(responsePane.loadingView).toBeVisible();
+
+    await playground.openEnvironments();
+    await replied;
+
+    await playground.openRequest('get users');
+    await expect(responsePane.status).toContainText('200');
+  });
+
   test('closing the playground while a request is running stops the request', async ({
     page,
     playground,

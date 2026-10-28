@@ -188,6 +188,15 @@ export class PlaygroundComponent extends BaseComponent {
     await this.grabHandle(this.bottomResizer);
   }
 
+  async dividerX(): Promise<number> {
+    const box = await this.divider.boundingBox();
+    return box?.x ?? 0;
+  }
+
+  async grabDivider(): Promise<void> {
+    await this.grabHandle(this.divider);
+  }
+
   async grabInlineResizer(): Promise<void> {
     await this.grabHandle(this.inlineResizer);
   }

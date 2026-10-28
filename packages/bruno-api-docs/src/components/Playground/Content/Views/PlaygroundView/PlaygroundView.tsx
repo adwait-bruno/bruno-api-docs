@@ -15,7 +15,11 @@ import { PromptVariablesModal } from '@/components/PromptVariablesModal/PromptVa
 import {
   updatePlaygroundItem,
   setPlaygroundResponse,
+  clearPlaygroundResponse,
   selectPlaygroundResponse,
+  setPlaygroundRequestStarted,
+  clearPlaygroundRequestStarted,
+  selectPlaygroundRequestStartedAt,
   applyScriptVariableChanges
 } from '@/store/slices/playground';
 import { getItemName, isPlaygroundUnsupported, getRequestAuth, getRequestHeaders } from '@/utils/schemaHelpers';
@@ -24,6 +28,7 @@ import UnsupportedRequest from '@/components/UnsupportedRequest/UnsupportedReque
 import { FileNotFoundIcon } from '@/assets/icons';
 import { useSplitPane } from '@/hooks/useSplitPane';
 import { SplitDivider } from '@/components/SplitDivider/SplitDivider';
+import { playgroundRuns, PLAYGROUND_CLOSED } from './playgroundRuns';
 
 interface PlaygroundViewProps {
   item: HttpRequest;
@@ -38,7 +43,8 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
   const itemName = getItemName(editableItem) || 'Untitled Request';
   const itemUuid = (item as any).uuid;
   const response = useAppSelector((state) => selectPlaygroundResponse(state, itemUuid));
-  const [isLoading, setIsLoading] = useState(false);
+  const requestStartedAt = useAppSelector((state) => selectPlaygroundRequestStartedAt(state, itemUuid));
+  const isLoading = requestStartedAt !== null;
   const promptVariablesController = usePromptVariables();
   const { collect: collectPromptVariables } = promptVariablesController;
   // The request/response split is one draggable divider whose axis follows the
@@ -75,7 +81,6 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSaveRef = useRef<{ uuid: string; item: HttpRequest } | null>(null);
-  const sendInFlightRef = useRef(false);
 
   useEffect(() => {
     setEditableItem(item);
@@ -109,8 +114,10 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
   }, [dispatch]);
 
   const handleSendRequest = useCallback(async () => {
-    if (sendInFlightRef.current) return;
-    sendInFlightRef.current = true;
+    const uuid = itemUuid;
+    if (playgroundRuns.isSending(uuid)) return;
+    playgroundRuns.beginSend(uuid);
+    let controller: AbortController | null = null;
 
     try {
       // Check both root level and config level for environments
@@ -128,17 +135,26 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
       const promptVariables = await collectPromptVariables(promptNames);
       if (!promptVariables) return;
 
-      setIsLoading(true);
+      controller = new AbortController();
+      playgroundRuns.start(uuid, controller);
+      dispatch(setPlaygroundRequestStarted({ uuid, startedAt: Date.now() }));
       const result = await requestRunner.runRequest({
         item: editableItem,
         collection,
         environment,
         runtimeVariables: {},
         promptVariables,
-        prepared
+        prepared,
+        signal: controller.signal
       });
 
-      dispatch(setPlaygroundResponse({ uuid: itemUuid, response: result }));
+      if (controller.signal.aborted) {
+        const serverReplied = result.status !== undefined;
+        const superseded = !playgroundRuns.isLatest(uuid, controller) || controller.signal.reason === PLAYGROUND_CLOSED;
+        if (!serverReplied || superseded) return;
+      }
+
+      dispatch(setPlaygroundResponse({ uuid, response: result }));
 
       if (result.environmentVariables || result.collectionVariables) {
         dispatch(applyScriptVariableChanges({
@@ -148,16 +164,23 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
       }
     } catch (error) {
       dispatch(setPlaygroundResponse({
-        uuid: itemUuid,
+        uuid,
         response: {
           error: error instanceof Error ? error.message : 'Unknown error occurred'
         }
       }));
     } finally {
-      sendInFlightRef.current = false;
-      setIsLoading(false);
+      if (playgroundRuns.finish(uuid, controller)) {
+        dispatch(clearPlaygroundRequestStarted(uuid));
+      }
     }
   }, [collection, editableItem, selectedEnvironment, itemUuid, dispatch, collectPromptVariables]);
+
+  const handleCancelRequest = useCallback(() => {
+    if (!playgroundRuns.cancel(itemUuid)) return;
+    dispatch(clearPlaygroundRequestStarted(itemUuid));
+    dispatch(clearPlaygroundResponse(itemUuid));
+  }, [dispatch, itemUuid]);
 
   return (
     <ItemVariableResolverProvider
@@ -182,6 +205,7 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
         <QueryBar
           item={editableItem}
           onSendRequest={handleSendRequest}
+          onCancelRequest={handleCancelRequest}
           isLoading={isLoading}
           onItemChange={handleItemChange}
           effectiveAuth={effectiveAuth}
@@ -207,7 +231,14 @@ const HttpRequestPlaygroundView: React.FC<PlaygroundViewProps> = ({ item, collec
           <SplitDivider orientation={orientation} onPointerDown={startResize} active={isResizing} testId="playground-divider" />
 
           <div className="flex-1 overflow-hidden min-h-0">
-            <ResponsePane response={response} isLoading={isLoading} orientation={orientation} itemUuid={itemUuid} />
+            <ResponsePane
+              response={response}
+              isLoading={isLoading}
+              requestStartedAt={requestStartedAt}
+              onCancelRequest={handleCancelRequest}
+              orientation={orientation}
+              itemUuid={itemUuid}
+            />
           </div>
         </div>
       </div>

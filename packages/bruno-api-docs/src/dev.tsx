@@ -44,6 +44,7 @@ const theme = getThemeStateFrom({
   mode: params.get('themeMode') ?? undefined
 });
 const hideThemeSwitcher = params.get('hideThemeSwitcher') === '1';
+const hidePlayground = params.get('hidePlayground') === '1';
 const unknownFixture = fixture != null && !(fixture in fixtures);
 const devCollection = unknownFixture || fixture == null
   ? sampleCollectionYaml
@@ -74,6 +75,7 @@ const DevApp: React.FC = () => {
           gitCollectionUrl={noGit ? undefined : 'https://github.com/usebruno/bruno-testbench.git'}
           theme={theme}
           hideThemeSwitcher={hideThemeSwitcher}
+          hidePlayground={hidePlayground}
         />
       </div>
     </Provider>

@@ -83,6 +83,7 @@ export interface OpenCollectionProps {
   gitCollectionUrl?: string;
   theme?: Partial<ThemeState>;
   hideThemeSwitcher?: boolean;
+  hidePlayground?: boolean;
 }
 
 const OpenCollectionContent: React.FC<OpenCollectionProps> = ({
@@ -90,7 +91,8 @@ const OpenCollectionContent: React.FC<OpenCollectionProps> = ({
   logo,
   gitCollectionUrl,
   theme,
-  hideThemeSwitcher
+  hideThemeSwitcher,
+  hidePlayground = false
 }) => {
   const dispatch = useAppDispatch();
   const docsCollection = useAppSelector(selectDocsCollection);
@@ -168,7 +170,7 @@ const OpenCollectionContent: React.FC<OpenCollectionProps> = ({
 
   return (
     <div className="oc-playground">
-      <AppShell logo={logo} hideThemeSwitcher={hideThemeSwitcher} />
+      <AppShell logo={logo} hidePlayground={hidePlayground} hideThemeSwitcher={hideThemeSwitcher} />
     </div>
   );
 };

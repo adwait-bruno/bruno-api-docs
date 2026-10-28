@@ -22,6 +22,7 @@ export interface OpenCollectionOptions {
   gitCollectionUrl?: string;
   theme?: Partial<ThemeState>;
   hideThemeSwitcher?: boolean;
+  hidePlayground?: boolean;
 }
 
 export interface ApiDocsOptions extends Omit<OpenCollectionOptions, 'target' | 'opencollection'> {
@@ -103,7 +104,8 @@ export class OpenCollectionRenderer {
       logo: this.createLogoElement(),
       gitCollectionUrl: this.options.gitCollectionUrl,
       theme: this.options.theme,
-      hideThemeSwitcher: Boolean(this.options.hideThemeSwitcher)
+      hideThemeSwitcher: this.options.hideThemeSwitcher,
+      hidePlayground: this.options.hidePlayground
     }));
   }
 

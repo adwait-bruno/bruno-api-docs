@@ -14,6 +14,7 @@ export class ResponsePaneComponent extends BaseComponent {
   readonly queryBarCancelButton = this.page.getByTestId('query-bar-cancel');
   readonly loadingView = this.page.getByTestId('response-loading');
   readonly stopwatch = this.loadingView.getByTestId('response-stopwatch');
+  readonly loadingText = this.loadingView.getByTestId('response-loading-text');
   readonly cancelButton = this.loadingView.getByTestId('response-cancel-request');
   readonly status = this.page.getByTestId('response-status');
   readonly bodyPanel = this.page.getByTestId('response-tabs-panel-response');

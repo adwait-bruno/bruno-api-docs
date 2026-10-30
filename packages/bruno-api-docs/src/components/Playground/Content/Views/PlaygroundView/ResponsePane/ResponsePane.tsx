@@ -58,6 +58,7 @@ const ResponsePane: React.FC<ResponsePaneProps> = ({
         <span className="loading-icon">
           <RefreshIcon />
         </span>
+        <span className="loading-text" data-testid="response-loading-text">Sending request...</span>
         <button
           type="button"
           className="cancel-request"

@@ -51,6 +51,11 @@ export const StyledWrapper = styled.div`
     animation: rotateCounterClockwise 1s linear infinite;
   }
 
+  .loading-text {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
   @keyframes rotateCounterClockwise {
     to {
       transform: rotate(-360deg);
@@ -58,21 +63,33 @@ export const StyledWrapper = styled.div`
   }
 
   button.cancel-request {
-    height: 1.75rem;
-    padding: 0 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--oc-radius);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--oc-button2-color-secondary-border);
+    border-radius: var(--oc-border-radius-base);
+    background-color: var(--oc-button2-color-secondary-bg);
+    color: var(--oc-button2-color-secondary-text);
+    font-size: var(--oc-font-size-sm);
+    font-weight: 400;
+    line-height: 1;
     cursor: pointer;
+    transition: all 0.15s ease;
 
     &:hover {
-      color: var(--text-primary);
+      background-color: color-mix(in srgb, var(--oc-button2-color-secondary-bg) 97%, black);
+      background-color: hsl(from var(--oc-button2-color-secondary-bg) h s calc(l - 3));
+      border-color: color-mix(in srgb, var(--oc-button2-color-secondary-border) 97%, black);
+      border-color: hsl(from var(--oc-button2-color-secondary-border) h s calc(l - 3));
+    }
+    &:active {
+      background-color: color-mix(in srgb, var(--oc-button2-color-secondary-bg) 93%, black);
+      background-color: hsl(from var(--oc-button2-color-secondary-bg) h s calc(l - 7));
     }
     &:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
+      outline: none;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--oc-button2-color-secondary-text) 40%, transparent);
     }
   }
 

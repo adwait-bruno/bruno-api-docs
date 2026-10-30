@@ -24,6 +24,7 @@ test.describe('cancelling an in-flight playground request', () => {
     await responsePane.send();
 
     await expect(responsePane.stopwatch).toHaveText(/^\d+\.\ds$/);
+    await expect(responsePane.loadingText).toHaveText('Sending request...');
     const firstReading = await responsePane.stopwatch.innerText();
     await expect(responsePane.stopwatch).not.toHaveText(firstReading);
 
